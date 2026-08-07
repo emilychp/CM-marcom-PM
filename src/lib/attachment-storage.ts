@@ -1,13 +1,17 @@
 import { mkdir, writeFile, readFile, unlink } from "node:fs/promises"
 import path from "node:path"
-import { put, del } from "@vercel/blob"
+import { put, get, del } from "@vercel/blob"
 
 const UPLOAD_ROOT = path.join(process.cwd(), "uploads")
 
 // In production (Vercel), the filesystem is ephemeral/read-only, so
-// attachments are stored in Vercel Blob instead. Locally, without a
-// blob token configured, we fall back to a plain uploads/ directory.
-const useBlob = !!process.env.BLOB_READ_WRITE_TOKEN
+// attachments are stored in Vercel Blob instead. Locally, there's no
+// Blob store connected, so we fall back to a plain uploads/ directory.
+// `VERCEL` is set on every Vercel deployment (build and runtime); the
+// Blob SDK authenticates automatically via OIDC/system env vars once a
+// store is connected to the project, so we don't need to check for a
+// specific token var.
+const useBlob = process.env.VERCEL === "1"
 
 function isRemoteKey(storageKey: string) {
   return /^https?:\/\//.test(storageKey)
@@ -20,7 +24,7 @@ export async function saveAttachmentFile(
 ): Promise<string> {
   if (useBlob) {
     const blob = await put(storageKey, buffer, {
-      access: "public",
+      access: "private",
       addRandomSuffix: false,
     })
     return blob.url
@@ -34,9 +38,9 @@ export async function saveAttachmentFile(
 
 export async function readAttachmentFile(storageKey: string): Promise<Buffer> {
   if (isRemoteKey(storageKey)) {
-    const res = await fetch(storageKey)
-    if (!res.ok) throw new Error("Failed to fetch attachment from blob storage")
-    return Buffer.from(await res.arrayBuffer())
+    const result = await get(storageKey, { access: "private" })
+    if (!result?.stream) throw new Error("Attachment not found in blob storage")
+    return Buffer.from(await new Response(result.stream).arrayBuffer())
   }
   return readFile(path.join(UPLOAD_ROOT, storageKey))
 }
