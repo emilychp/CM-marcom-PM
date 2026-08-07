@@ -14,6 +14,8 @@ const actionLabels: Record<string, string> = {
   HEALTH_CHANGED: "變更健康度",
   NOTE_UPDATED: "更新說明",
   PRIORITY_CHANGED: "變更優先性",
+  NAME_CHANGED: "變更專案名稱",
+  OWNER_CHANGED: "變更負責人",
 }
 
 type ActivityEntry = {
@@ -42,7 +44,8 @@ export function ActivityTimeline({ activity }: { activity: ActivityEntry[] }) {
                 <span className="font-medium">{entry.user.name}</span>{" "}
                 <span className="text-muted-foreground">
                   {actionLabels[entry.action] ?? entry.action}
-                  {entry.field && entry.field !== "health" && entry.field !== "priority"
+                  {entry.field &&
+                  !["health", "priority", "name", "owner"].includes(entry.field)
                     ? `（${entry.field}）`
                     : ""}
                   {(() => {

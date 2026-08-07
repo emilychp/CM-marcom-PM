@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "ActivityAction" ADD VALUE 'NAME_CHANGED';
+ALTER TYPE "ActivityAction" ADD VALUE 'OWNER_CHANGED';

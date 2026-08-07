@@ -15,6 +15,8 @@ import {
 } from "@/lib/status-labels"
 import { ProjectStatusSelect } from "@/components/project-status-select"
 import { ProjectPrioritySelect } from "@/components/project-priority-select"
+import { ProjectNameEditor } from "@/components/project-name-editor"
+import { ProjectOwnerSelect } from "@/components/project-owner-select"
 import { PhaseList } from "@/components/phase-list"
 import { AddPhaseForm } from "@/components/add-phase-form"
 import { MembersPanel } from "@/components/members-panel"
@@ -92,7 +94,11 @@ export default async function ProjectDetailPage({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-semibold">{project.name}</h1>
+                <ProjectNameEditor
+                  projectId={project.id}
+                  name={project.name}
+                  manageable={manageable}
+                />
                 <Badge variant={projectStatusVariant[project.status]}>
                   {projectStatusLabels[project.status]}
                 </Badge>
@@ -105,11 +111,20 @@ export default async function ProjectDetailPage({
                   {project.description}
                 </p>
               )}
-              <p className="mt-2 text-sm text-muted-foreground">
-                負責人：{project.owner.name}
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+                <span>負責人：</span>
+                {manageable ? (
+                  <ProjectOwnerSelect
+                    projectId={project.id}
+                    ownerId={project.owner.id}
+                    allUsers={allUsers}
+                  />
+                ) : (
+                  <span>{project.owner.name}</span>
+                )}
                 {project.dueDate &&
                   ` ・ 截止日期：${new Date(project.dueDate).toLocaleDateString("zh-TW")}`}
-              </p>
+              </div>
             </div>
             {manageable && (
               <div className="flex items-center gap-2">

@@ -88,6 +88,8 @@ enum ActivityAction {
   HEALTH_CHANGED
   NOTE_UPDATED
   PRIORITY_CHANGED
+  NAME_CHANGED
+  OWNER_CHANGED
 }
 
 model User {

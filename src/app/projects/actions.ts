@@ -122,6 +122,73 @@ export async function updateProjectPriority(
   return project
 }
 
+export async function updateProjectName(projectId: string, name: string) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  const trimmed = name.trim()
+  if (!trimmed) throw new Error("INVALID_NAME")
+
+  const before = await prisma.project.findUniqueOrThrow({ where: { id: projectId } })
+  const project = await prisma.project.update({
+    where: { id: projectId },
+    data: { name: trimmed },
+  })
+
+  await logActivity({
+    entityType: "PROJECT",
+    entityId: projectId,
+    userId: user.id,
+    action: "NAME_CHANGED",
+    field: "name",
+    oldValue: before.name,
+    newValue: trimmed,
+  })
+
+  revalidatePath("/dashboard")
+  revalidatePath(`/projects/${projectId}`)
+  return project
+}
+
+export async function updateProjectOwner(projectId: string, ownerId: string) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  const newOwner = await prisma.user.findUniqueOrThrow({ where: { id: ownerId } })
+  const before = await prisma.project.findUniqueOrThrow({
+    where: { id: projectId },
+    include: { owner: { select: { name: true } } },
+  })
+
+  const [project] = await prisma.$transaction([
+    prisma.project.update({
+      where: { id: projectId },
+      data: { ownerId },
+    }),
+    prisma.projectMember.upsert({
+      where: { projectId_userId: { projectId, userId: ownerId } },
+      create: { projectId, userId: ownerId, roleInProject: "MANAGER" },
+      update: { roleInProject: "MANAGER" },
+    }),
+  ])
+
+  await logActivity({
+    entityType: "PROJECT",
+    entityId: projectId,
+    userId: user.id,
+    action: "OWNER_CHANGED",
+    field: "owner",
+    oldValue: before.owner?.name ?? null,
+    newValue: newOwner.name,
+  })
+
+  revalidatePath("/dashboard")
+  revalidatePath(`/projects/${projectId}`)
+  return project
+}
+
 export async function deleteProject(projectId: string) {
   const user = await requireUser()
   const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
