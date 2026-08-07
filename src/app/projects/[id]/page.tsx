@@ -21,6 +21,7 @@ import { MembersPanel } from "@/components/members-panel"
 import { CustomFieldsPanel } from "@/components/custom-fields-panel"
 import { ActivityTimeline } from "@/components/activity-timeline"
 import { AttachmentsPanel } from "@/components/attachments-panel"
+import { DeleteProjectDialog } from "@/components/delete-project-dialog"
 
 export default async function ProjectDetailPage({
   params,
@@ -171,6 +172,18 @@ export default async function ProjectDetailPage({
         />
 
         <ActivityTimeline activity={activity} />
+
+        {manageable && (
+          <div className="rounded-lg border border-destructive/30 bg-background p-6">
+            <h2 className="text-lg font-semibold text-destructive">危險區域</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              刪除專案會一併移除所有階段、任務、附件與自訂欄位資料，且無法復原，請謹慎操作。
+            </p>
+            <div className="mt-4">
+              <DeleteProjectDialog projectId={project.id} projectName={project.name} />
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )

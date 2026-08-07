@@ -122,6 +122,42 @@ export async function updateProjectPriority(
   return project
 }
 
+export async function deleteProject(projectId: string) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  // Clean up externally-stored attachment files before the DB cascade
+  // removes their rows — Prisma's cascade only deletes the Attachment
+  // records, not the underlying files in local storage / Vercel Blob.
+  const attachments = await prisma.attachment.findMany({ where: { projectId } })
+  await Promise.all(attachments.map((a) => deleteAttachmentFile(a.storageKey)))
+
+  // ActivityLog rows reference their subject via a polymorphic
+  // (entityType, entityId) pair rather than a real foreign key, so they
+  // don't cascade automatically — clean up both the project's own log
+  // and its tasks' logs explicitly to avoid leaving orphaned rows.
+  const taskIds = (
+    await prisma.task.findMany({
+      where: { phase: { projectId } },
+      select: { id: true },
+    })
+  ).map((t) => t.id)
+
+  await prisma.activityLog.deleteMany({
+    where: {
+      OR: [
+        { entityType: "PROJECT", entityId: projectId },
+        { entityType: "TASK", entityId: { in: taskIds } },
+      ],
+    },
+  })
+
+  await prisma.project.delete({ where: { id: projectId } })
+
+  revalidatePath("/dashboard")
+}
+
 export async function addProjectMember(
   projectId: string,
   userId: string,
