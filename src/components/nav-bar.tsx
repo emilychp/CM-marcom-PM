@@ -11,9 +11,19 @@ export async function NavBar() {
   return (
     <header className="border-b bg-background">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <Link href="/dashboard" className="text-lg font-semibold">
-          專案儀表板
-        </Link>
+        <div className="flex items-center gap-6">
+          <Link href="/dashboard" className="text-lg font-semibold">
+            專案儀表板
+          </Link>
+          {user?.globalRole === "ADMIN" && (
+            <Link
+              href="/admin/users"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              成員管理
+            </Link>
+          )}
+        </div>
         {user && (
           <div className="flex items-center gap-3">
             <Badge variant={user.globalRole === "ADMIN" ? "default" : "outline"}>
