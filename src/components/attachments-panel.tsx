@@ -1,0 +1,172 @@
+"use client"
+
+import { useRef, useState, useTransition } from "react"
+import { toast } from "sonner"
+import { FileText, FileSpreadsheet, FileArchive, File as FileIcon, Upload, X } from "lucide-react"
+import { uploadAttachment, deleteAttachment } from "@/app/projects/actions"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
+import { formatFileSize } from "@/lib/format"
+
+type Attachment = {
+  id: string
+  filename: string
+  mimeType: string
+  size: number
+  createdAt: Date
+  uploader: { id: string; name: string }
+}
+
+const UPLOAD_ERROR_MESSAGES: Record<string, string> = {
+  NO_FILE: "請先選擇檔案",
+  FILE_TOO_LARGE: "檔案超過 10MB 上限",
+  UNSUPPORTED_TYPE: "不支援的檔案格式",
+}
+
+function FileTypeIcon({ mimeType }: { mimeType: string }) {
+  if (mimeType === "application/pdf" || mimeType === "text/plain")
+    return <FileText className="h-8 w-8 text-muted-foreground" />
+  if (mimeType.includes("spreadsheet") || mimeType === "text/csv")
+    return <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />
+  if (mimeType === "application/zip")
+    return <FileArchive className="h-8 w-8 text-muted-foreground" />
+  return <FileIcon className="h-8 w-8 text-muted-foreground" />
+}
+
+export function AttachmentsPanel({
+  projectId,
+  attachments,
+  currentUserId,
+  manageable,
+}: {
+  projectId: string
+  attachments: Attachment[]
+  currentUserId: string
+  manageable: boolean
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setSelectedFile(e.target.files?.[0] ?? null)
+  }
+
+  function handleUpload() {
+    if (!selectedFile) return
+    const formData = new FormData()
+    formData.set("file", selectedFile)
+    startTransition(async () => {
+      try {
+        await uploadAttachment(projectId, formData)
+        toast.success("附件已上傳")
+        setSelectedFile(null)
+        if (fileInputRef.current) fileInputRef.current.value = ""
+      } catch (err) {
+        const message =
+          err instanceof Error ? UPLOAD_ERROR_MESSAGES[err.message] : undefined
+        toast.error(message ?? "上傳失敗")
+      }
+    })
+  }
+
+  function handleDelete(attachmentId: string) {
+    startTransition(async () => {
+      try {
+        await deleteAttachment(attachmentId, projectId)
+        toast.success("附件已刪除")
+      } catch {
+        toast.error("刪除失敗")
+      }
+    })
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>附件</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            onChange={handleFileChange}
+            disabled={isPending}
+            accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip"
+            className="text-sm text-muted-foreground file:mr-3 file:rounded-md file:border file:bg-background file:px-3 file:py-1.5 file:text-sm file:font-medium"
+          />
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleUpload}
+            disabled={!selectedFile || isPending}
+          >
+            <Upload className="mr-1 h-4 w-4" />
+            {isPending ? "上傳中..." : "上傳"}
+          </Button>
+        </div>
+
+        {attachments.length === 0 ? (
+          <p className="text-sm text-muted-foreground">尚無附件</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+            {attachments.map((attachment) => {
+              const canDelete =
+                manageable || attachment.uploader.id === currentUserId
+              const isImage = attachment.mimeType.startsWith("image/")
+              const fileUrl = `/api/attachments/${attachment.id}`
+
+              return (
+                <div
+                  key={attachment.id}
+                  className="group relative overflow-hidden rounded-lg border"
+                >
+                  <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="block">
+                    <div className="flex aspect-square items-center justify-center bg-muted">
+                      {isImage ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={fileUrl}
+                          alt={attachment.filename}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <FileTypeIcon mimeType={attachment.mimeType} />
+                      )}
+                    </div>
+                    <div className="p-2">
+                      <p className="truncate text-xs font-medium">
+                        {attachment.filename}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {formatFileSize(attachment.size)} ・ {attachment.uploader.name}
+                      </p>
+                    </div>
+                  </a>
+                  {canDelete && (
+                    <ConfirmDeleteDialog
+                      trigger={
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          className="absolute top-1.5 right-1.5 rounded-full bg-background/90 p-1 text-muted-foreground opacity-0 shadow transition-opacity group-hover:opacity-100 hover:text-destructive"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      }
+                      title="刪除附件"
+                      description={`確定要刪除「${attachment.filename}」嗎？此操作無法復原。`}
+                      onConfirm={() => handleDelete(attachment.id)}
+                    />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}

@@ -1,0 +1,613 @@
+"use server"
+
+import { revalidatePath } from "next/cache"
+import { randomUUID } from "node:crypto"
+import { prisma } from "@/lib/prisma"
+import { requireUser } from "@/lib/session"
+import { getEffectiveProjectRole, canManageProject, canEditTask } from "@/lib/permissions"
+import { logActivity } from "@/lib/activity-log"
+import { saveAttachmentFile, deleteAttachmentFile } from "@/lib/attachment-storage"
+import { Prisma } from "@/generated/prisma/client"
+import type {
+  ProjectStatus,
+  PhaseStatus,
+  TaskStatus,
+  TaskHealth,
+  FieldType,
+  FieldScope,
+} from "@/generated/prisma/enums"
+
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024 // 10MB
+const ALLOWED_ATTACHMENT_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "image/svg+xml",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain",
+  "text/csv",
+  "application/zip",
+])
+
+// ---------- Project ----------
+
+export async function createProject(data: {
+  name: string
+  description?: string
+  dueDate?: string
+}) {
+  const user = await requireUser()
+
+  const project = await prisma.project.create({
+    data: {
+      name: data.name,
+      description: data.description || null,
+      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      ownerId: user.id,
+      members: {
+        create: [{ userId: user.id, roleInProject: "MANAGER" }],
+      },
+    },
+  })
+
+  await logActivity({
+    entityType: "PROJECT",
+    entityId: project.id,
+    userId: user.id,
+    action: "CREATED",
+  })
+
+  revalidatePath("/dashboard")
+  return project
+}
+
+export async function updateProjectStatus(projectId: string, status: ProjectStatus) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  const before = await prisma.project.findUniqueOrThrow({ where: { id: projectId } })
+  const project = await prisma.project.update({
+    where: { id: projectId },
+    data: { status },
+  })
+
+  await logActivity({
+    entityType: "PROJECT",
+    entityId: projectId,
+    userId: user.id,
+    action: "STATUS_CHANGED",
+    field: "status",
+    oldValue: before.status,
+    newValue: status,
+  })
+
+  revalidatePath("/dashboard")
+  revalidatePath(`/projects/${projectId}`)
+  return project
+}
+
+export async function addProjectMember(
+  projectId: string,
+  userId: string,
+  roleInProject: "MANAGER" | "MEMBER"
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  const member = await prisma.projectMember.upsert({
+    where: { projectId_userId: { projectId, userId } },
+    update: { roleInProject },
+    create: { projectId, userId, roleInProject },
+  })
+
+  await logActivity({
+    entityType: "PROJECT",
+    entityId: projectId,
+    userId: user.id,
+    action: "MEMBER_ADDED",
+    field: "member",
+    newValue: userId,
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  return member
+}
+
+export async function removeProjectMember(projectId: string, userId: string) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  await prisma.projectMember.delete({
+    where: { projectId_userId: { projectId, userId } },
+  })
+
+  await logActivity({
+    entityType: "PROJECT",
+    entityId: projectId,
+    userId: user.id,
+    action: "MEMBER_REMOVED",
+    field: "member",
+    oldValue: userId,
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+}
+
+// ---------- Phase ----------
+
+export async function createPhase(projectId: string, name: string) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  const count = await prisma.phase.count({ where: { projectId } })
+  const phase = await prisma.phase.create({
+    data: { projectId, name, order: count },
+  })
+
+  await logActivity({
+    entityType: "PROJECT",
+    entityId: projectId,
+    userId: user.id,
+    action: "UPDATED",
+    field: "phase_added",
+    newValue: name,
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  return phase
+}
+
+export async function updatePhaseStatus(
+  phaseId: string,
+  projectId: string,
+  status: PhaseStatus
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  const phase = await prisma.phase.update({
+    where: { id: phaseId },
+    data: { status },
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  return phase
+}
+
+export async function updatePhase(
+  phaseId: string,
+  projectId: string,
+  data: { name: string }
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  const before = await prisma.phase.findUniqueOrThrow({ where: { id: phaseId } })
+  const phase = await prisma.phase.update({
+    where: { id: phaseId },
+    data: { name: data.name },
+  })
+
+  await logActivity({
+    entityType: "PROJECT",
+    entityId: projectId,
+    userId: user.id,
+    action: "UPDATED",
+    field: "phase_renamed",
+    oldValue: before.name,
+    newValue: data.name,
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  return phase
+}
+
+export async function deletePhase(phaseId: string, projectId: string) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  const phase = await prisma.phase.delete({ where: { id: phaseId } })
+
+  await logActivity({
+    entityType: "PROJECT",
+    entityId: projectId,
+    userId: user.id,
+    action: "UPDATED",
+    field: "phase_removed",
+    oldValue: phase.name,
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath("/dashboard")
+}
+
+// ---------- Task ----------
+
+export async function createTask(
+  phaseId: string,
+  projectId: string,
+  data: { title: string; assigneeId?: string | null; dueDate?: string }
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  const count = await prisma.task.count({ where: { phaseId } })
+  const task = await prisma.task.create({
+    data: {
+      phaseId,
+      title: data.title,
+      assigneeId: data.assigneeId || null,
+      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      order: count,
+    },
+  })
+
+  await logActivity({
+    entityType: "TASK",
+    entityId: task.id,
+    userId: user.id,
+    action: "CREATED",
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  return task
+}
+
+export async function updateTaskProgress(
+  taskId: string,
+  projectId: string,
+  progress: number,
+  status: TaskStatus
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  const task = await prisma.task.findUniqueOrThrow({ where: { id: taskId } })
+
+  if (!canEditTask(role, task, user.id)) throw new Error("FORBIDDEN")
+
+  const clampedProgress = Math.min(100, Math.max(0, progress))
+
+  const updated = await prisma.task.update({
+    where: { id: taskId },
+    data: { progress: clampedProgress, status },
+  })
+
+  await logActivity({
+    entityType: "TASK",
+    entityId: taskId,
+    userId: user.id,
+    action: "PROGRESS_UPDATED",
+    field: "progress",
+    oldValue: String(task.progress),
+    newValue: String(clampedProgress),
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath("/dashboard")
+  return updated
+}
+
+export async function updateTaskHealth(
+  taskId: string,
+  projectId: string,
+  health: TaskHealth
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  const task = await prisma.task.findUniqueOrThrow({ where: { id: taskId } })
+
+  if (!canEditTask(role, task, user.id)) throw new Error("FORBIDDEN")
+
+  const updated = await prisma.task.update({
+    where: { id: taskId },
+    data: { health },
+  })
+
+  await logActivity({
+    entityType: "TASK",
+    entityId: taskId,
+    userId: user.id,
+    action: "HEALTH_CHANGED",
+    field: "health",
+    oldValue: task.health,
+    newValue: health,
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath("/dashboard")
+  return updated
+}
+
+// Lets whoever can work on the task (assignee, manager, or admin) keep
+// its free-form progress note up to date, without needing manager-only
+// access to restructure the task (title/assignee/due date).
+export async function updateTaskNote(
+  taskId: string,
+  projectId: string,
+  description: string
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  const task = await prisma.task.findUniqueOrThrow({ where: { id: taskId } })
+
+  if (!canEditTask(role, task, user.id)) throw new Error("FORBIDDEN")
+
+  const updated = await prisma.task.update({
+    where: { id: taskId },
+    data: { description: description || null },
+  })
+
+  await logActivity({
+    entityType: "TASK",
+    entityId: taskId,
+    userId: user.id,
+    action: "NOTE_UPDATED",
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath("/dashboard")
+  return updated
+}
+
+export async function updateTask(
+  taskId: string,
+  projectId: string,
+  data: {
+    title: string
+    description?: string
+    assigneeId?: string | null
+    dueDate?: string | null
+  }
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  const task = await prisma.task.update({
+    where: { id: taskId },
+    data: {
+      title: data.title,
+      description: data.description || null,
+      assigneeId: data.assigneeId || null,
+      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+    },
+  })
+
+  await logActivity({
+    entityType: "TASK",
+    entityId: taskId,
+    userId: user.id,
+    action: "UPDATED",
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath("/dashboard")
+  return task
+}
+
+export async function deleteTask(taskId: string, projectId: string) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  const task = await prisma.task.delete({ where: { id: taskId } })
+
+  await logActivity({
+    entityType: "PROJECT",
+    entityId: projectId,
+    userId: user.id,
+    action: "UPDATED",
+    field: "task_removed",
+    oldValue: task.title,
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath("/dashboard")
+}
+
+// ---------- Attachments ----------
+
+export async function uploadAttachment(projectId: string, formData: FormData) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!role) throw new Error("FORBIDDEN")
+
+  const file = formData.get("file")
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("NO_FILE")
+  }
+  if (file.size > MAX_ATTACHMENT_SIZE) {
+    throw new Error("FILE_TOO_LARGE")
+  }
+  if (!ALLOWED_ATTACHMENT_TYPES.has(file.type)) {
+    throw new Error("UNSUPPORTED_TYPE")
+  }
+
+  const safeName = file.name.replace(/[^\w.\-一-鿿]+/g, "_")
+  const uploadKey = `${projectId}/${randomUUID()}-${safeName}`
+  const buffer = Buffer.from(await file.arrayBuffer())
+  const storageKey = await saveAttachmentFile(uploadKey, buffer)
+
+  const attachment = await prisma.attachment.create({
+    data: {
+      projectId,
+      uploaderId: user.id,
+      filename: file.name,
+      storageKey,
+      mimeType: file.type,
+      size: file.size,
+    },
+  })
+
+  await logActivity({
+    entityType: "PROJECT",
+    entityId: projectId,
+    userId: user.id,
+    action: "ATTACHMENT_ADDED",
+    field: "attachment",
+    newValue: file.name,
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  return attachment
+}
+
+export async function deleteAttachment(attachmentId: string, projectId: string) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!role) throw new Error("FORBIDDEN")
+
+  const attachment = await prisma.attachment.findUniqueOrThrow({
+    where: { id: attachmentId },
+  })
+
+  const canDelete = canManageProject(role) || attachment.uploaderId === user.id
+  if (!canDelete) throw new Error("FORBIDDEN")
+
+  await prisma.attachment.delete({ where: { id: attachmentId } })
+  await deleteAttachmentFile(attachment.storageKey)
+
+  await logActivity({
+    entityType: "PROJECT",
+    entityId: projectId,
+    userId: user.id,
+    action: "ATTACHMENT_REMOVED",
+    field: "attachment",
+    oldValue: attachment.filename,
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+}
+
+// ---------- Custom fields ----------
+
+export async function upsertFieldDefinition(
+  projectId: string,
+  data: {
+    scope: FieldScope
+    key: string
+    label: string
+    fieldType: FieldType
+    options?: { label: string; color?: string }[]
+  }
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  const count = await prisma.fieldDefinition.count({ where: { projectId } })
+
+  const fieldDef = await prisma.fieldDefinition.upsert({
+    where: {
+      projectId_scope_key: { projectId, scope: data.scope, key: data.key },
+    },
+    update: {
+      label: data.label,
+      fieldType: data.fieldType,
+      options: data.options ?? undefined,
+    },
+    create: {
+      projectId,
+      scope: data.scope,
+      key: data.key,
+      label: data.label,
+      fieldType: data.fieldType,
+      options: data.options ?? undefined,
+      order: count,
+    },
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  return fieldDef
+}
+
+export async function setFieldValue(
+  entityType: "PROJECT" | "TASK",
+  entityId: string,
+  projectId: string,
+  fieldDefinitionId: string,
+  value: string | number
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  // Any project member may fill in custom field values (they're project
+  // content, same as task progress) — only the field schema itself
+  // (upsert/update/delete FieldDefinition) is manager-restricted.
+  if (!role) throw new Error("FORBIDDEN")
+
+  const fieldValue = await prisma.fieldValue.upsert({
+    where: {
+      entityType_entityId_fieldDefinitionId: {
+        entityType,
+        entityId,
+        fieldDefinitionId,
+      },
+    },
+    update: { value },
+    create: { entityType, entityId, fieldDefinitionId, value },
+  })
+
+  await logActivity({
+    entityType,
+    entityId,
+    userId: user.id,
+    action: "FIELD_VALUE_CHANGED",
+    field: fieldDefinitionId,
+    newValue: String(value),
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  return fieldValue
+}
+
+export async function updateFieldDefinition(
+  fieldDefinitionId: string,
+  projectId: string,
+  data: {
+    label: string
+    fieldType: FieldType
+    options?: { label: string; color?: string }[]
+  }
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  const fieldDef = await prisma.fieldDefinition.update({
+    where: { id: fieldDefinitionId },
+    data: {
+      label: data.label,
+      fieldType: data.fieldType,
+      options: data.options ?? Prisma.JsonNull,
+    },
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  return fieldDef
+}
+
+export async function deleteFieldDefinition(
+  fieldDefinitionId: string,
+  projectId: string
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  await prisma.fieldDefinition.delete({ where: { id: fieldDefinitionId } })
+
+  revalidatePath(`/projects/${projectId}`)
+}

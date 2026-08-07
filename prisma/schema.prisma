@@ -1,0 +1,233 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum GlobalRole {
+  ADMIN
+  MEMBER
+}
+
+enum ProjectRole {
+  MANAGER
+  MEMBER
+}
+
+enum ProjectStatus {
+  PLANNING
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  ARCHIVED
+}
+
+enum PhaseStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  DONE
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  BLOCKED
+  DONE
+}
+
+// Health/risk indicator, independent from workflow status — lets an
+// owner flag "on track" even while work is still in progress, or flag
+// risk before the task is formally blocked.
+enum TaskHealth {
+  ON_TRACK
+  AT_RISK
+  DELAYED
+}
+
+enum FieldScope {
+  PROJECT
+  TASK
+}
+
+enum FieldType {
+  TEXT
+  NUMBER
+  DATE
+  SELECT
+  STATUS
+}
+
+enum EntityType {
+  PROJECT
+  TASK
+}
+
+enum ActivityAction {
+  CREATED
+  UPDATED
+  STATUS_CHANGED
+  PROGRESS_UPDATED
+  MEMBER_ADDED
+  MEMBER_REMOVED
+  FIELD_VALUE_CHANGED
+  ATTACHMENT_ADDED
+  ATTACHMENT_REMOVED
+  HEALTH_CHANGED
+  NOTE_UPDATED
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  passwordHash String
+  globalRole   GlobalRole @default(MEMBER)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  ownedProjects Project[]       @relation("ProjectOwner")
+  memberships   ProjectMember[]
+  assignedTasks Task[]          @relation("TaskAssignee")
+  activityLogs  ActivityLog[]
+  attachments   Attachment[]    @relation("AttachmentUploader")
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  status      ProjectStatus @default(PLANNING)
+  ownerId     String
+  owner       User          @relation("ProjectOwner", fields: [ownerId], references: [id])
+  startDate   DateTime?
+  dueDate     DateTime?
+  archivedAt  DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  members     ProjectMember[]
+  phases      Phase[]
+  fieldDefs   FieldDefinition[]
+  attachments Attachment[]
+
+  @@index([ownerId])
+}
+
+model ProjectMember {
+  id            String      @id @default(cuid())
+  projectId     String
+  project       Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleInProject ProjectRole @default(MEMBER)
+  createdAt     DateTime    @default(now())
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+model Phase {
+  id        String      @id @default(cuid())
+  projectId String
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  order     Int         @default(0)
+  status    PhaseStatus @default(NOT_STARTED)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  tasks Task[]
+
+  @@index([projectId])
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  phaseId     String
+  phase       Phase      @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  assigneeId  String?
+  assignee    User?      @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  status      TaskStatus @default(TODO)
+  health      TaskHealth @default(ON_TRACK)
+  progress    Int        @default(0)
+  dueDate     DateTime?
+  order       Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([phaseId])
+  @@index([assigneeId])
+}
+
+// Flexible custom-field definitions. projectId = null means the field
+// applies as a default across all projects of that scope; a non-null
+// projectId scopes the field definition to a single project.
+model FieldDefinition {
+  id        String     @id @default(cuid())
+  scope     FieldScope
+  projectId String?
+  project   Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  key       String
+  label     String
+  fieldType FieldType
+  options   Json?
+  required  Boolean    @default(false)
+  order     Int        @default(0)
+  createdAt DateTime   @default(now())
+
+  values FieldValue[]
+
+  @@unique([projectId, scope, key])
+  @@index([projectId])
+}
+
+model FieldValue {
+  id                String          @id @default(cuid())
+  entityType        EntityType
+  entityId          String
+  fieldDefinitionId String
+  fieldDefinition   FieldDefinition @relation(fields: [fieldDefinitionId], references: [id], onDelete: Cascade)
+  value             Json
+
+  @@unique([entityType, entityId, fieldDefinitionId])
+  @@index([entityType, entityId])
+}
+
+model Attachment {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploaderId String
+  uploader   User     @relation("AttachmentUploader", fields: [uploaderId], references: [id])
+  filename   String
+  storageKey String
+  mimeType   String
+  size       Int
+  createdAt  DateTime @default(now())
+
+  @@index([projectId])
+}
+
+model ActivityLog {
+  id         String         @id @default(cuid())
+  entityType EntityType
+  entityId   String
+  userId     String
+  user       User           @relation(fields: [userId], references: [id])
+  action     ActivityAction
+  field      String?
+  oldValue   String?
+  newValue   String?
+  createdAt  DateTime       @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId])
+}
