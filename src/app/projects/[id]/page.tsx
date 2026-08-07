@@ -10,8 +10,11 @@ import { Progress } from "@/components/ui/progress"
 import {
   projectStatusLabels,
   projectStatusVariant,
+  projectPriorityLabels,
+  projectPriorityBadgeClass,
 } from "@/lib/status-labels"
 import { ProjectStatusSelect } from "@/components/project-status-select"
+import { ProjectPrioritySelect } from "@/components/project-priority-select"
 import { PhaseList } from "@/components/phase-list"
 import { AddPhaseForm } from "@/components/add-phase-form"
 import { MembersPanel } from "@/components/members-panel"
@@ -92,6 +95,9 @@ export default async function ProjectDetailPage({
                 <Badge variant={projectStatusVariant[project.status]}>
                   {projectStatusLabels[project.status]}
                 </Badge>
+                <Badge className={projectPriorityBadgeClass[project.priority]}>
+                  {projectPriorityLabels[project.priority]}
+                </Badge>
               </div>
               {project.description && (
                 <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
@@ -105,10 +111,16 @@ export default async function ProjectDetailPage({
               </p>
             </div>
             {manageable && (
-              <ProjectStatusSelect
-                projectId={project.id}
-                currentStatus={project.status}
-              />
+              <div className="flex items-center gap-2">
+                <ProjectPrioritySelect
+                  projectId={project.id}
+                  currentPriority={project.priority}
+                />
+                <ProjectStatusSelect
+                  projectId={project.id}
+                  currentStatus={project.status}
+                />
+              </div>
             )}
           </div>
           <div className="mt-4 space-y-1">

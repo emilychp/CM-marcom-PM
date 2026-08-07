@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma"
-import { TASK_HEALTH_SEVERITY } from "@/lib/status-labels"
+import { TASK_HEALTH_SEVERITY, PROJECT_PRIORITY_ORDER } from "@/lib/status-labels"
 
 const NOTE_SNIPPET_LENGTH = 60
 
@@ -91,8 +91,10 @@ export async function getProjectsForUser(user: {
       name: project.name,
       description: project.description,
       status: project.status,
+      priority: project.priority,
       owner: project.owner,
       dueDate: project.dueDate,
+      updatedAt: project.updatedAt,
       memberCount: project.members.length,
       taskCount: allTasks.length,
       progress,
@@ -100,6 +102,12 @@ export async function getProjectsForUser(user: {
       health: pickWorstHealth(allTasks),
       highlightNote: pickHighlightNote(project.phases),
     }
+  }).sort((a, b) => {
+    const priorityDiff =
+      PROJECT_PRIORITY_ORDER.indexOf(a.priority as (typeof PROJECT_PRIORITY_ORDER)[number]) -
+      PROJECT_PRIORITY_ORDER.indexOf(b.priority as (typeof PROJECT_PRIORITY_ORDER)[number])
+    if (priorityDiff !== 0) return priorityDiff
+    return b.updatedAt.getTime() - a.updatedAt.getTime()
   })
 }
 

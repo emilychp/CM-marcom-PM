@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { taskHealthLabels } from "@/lib/status-labels"
+import { taskHealthLabels, projectPriorityLabels } from "@/lib/status-labels"
 
 const actionLabels: Record<string, string> = {
   CREATED: "建立了",
@@ -13,6 +13,7 @@ const actionLabels: Record<string, string> = {
   ATTACHMENT_REMOVED: "刪除附件",
   HEALTH_CHANGED: "變更健康度",
   NOTE_UPDATED: "更新說明",
+  PRIORITY_CHANGED: "變更優先性",
 }
 
 type ActivityEntry = {
@@ -41,10 +42,16 @@ export function ActivityTimeline({ activity }: { activity: ActivityEntry[] }) {
                 <span className="font-medium">{entry.user.name}</span>{" "}
                 <span className="text-muted-foreground">
                   {actionLabels[entry.action] ?? entry.action}
-                  {entry.field && entry.field !== "health" ? `（${entry.field}）` : ""}
+                  {entry.field && entry.field !== "health" && entry.field !== "priority"
+                    ? `（${entry.field}）`
+                    : ""}
                   {(() => {
                     const format = (v: string) =>
-                      entry.field === "health" ? (taskHealthLabels[v] ?? v) : v
+                      entry.field === "health"
+                        ? (taskHealthLabels[v] ?? v)
+                        : entry.field === "priority"
+                          ? (projectPriorityLabels[v] ?? v)
+                          : v
                     if (entry.oldValue != null && entry.newValue != null) {
                       return `：${format(entry.oldValue)} → ${format(entry.newValue)}`
                     }

@@ -7,7 +7,13 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { projectStatusLabels, projectStatusVariant, taskHealthLabels } from "@/lib/status-labels"
+import {
+  projectStatusLabels,
+  projectStatusVariant,
+  projectPriorityLabels,
+  projectPriorityBadgeClass,
+  taskHealthLabels,
+} from "@/lib/status-labels"
 import { TaskStatusBreakdown } from "@/components/task-status-breakdown"
 import { HealthDot } from "@/components/health-dot"
 
@@ -16,6 +22,7 @@ type ProjectCardData = {
   name: string
   description: string | null
   status: string
+  priority: string
   owner: { id: string; name: string } | null
   dueDate: Date | null
   memberCount: number
@@ -33,9 +40,14 @@ export function ProjectCard({ project }: { project: ProjectCardData }) {
         <CardHeader>
           <div className="flex items-start justify-between gap-2">
             <CardTitle className="line-clamp-1">{project.name}</CardTitle>
-            <Badge variant={projectStatusVariant[project.status]}>
-              {projectStatusLabels[project.status]}
-            </Badge>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <Badge className={projectPriorityBadgeClass[project.priority]}>
+                {projectPriorityLabels[project.priority]}
+              </Badge>
+              <Badge variant={projectStatusVariant[project.status]}>
+                {projectStatusLabels[project.status]}
+              </Badge>
+            </div>
           </div>
           {project.description && (
             <CardDescription className="line-clamp-2">

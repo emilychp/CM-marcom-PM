@@ -10,6 +10,7 @@ import { saveAttachmentFile, deleteAttachmentFile } from "@/lib/attachment-stora
 import { Prisma } from "@/generated/prisma/client"
 import type {
   ProjectStatus,
+  ProjectPriority,
   PhaseStatus,
   TaskStatus,
   TaskHealth,
@@ -85,6 +86,35 @@ export async function updateProjectStatus(projectId: string, status: ProjectStat
     field: "status",
     oldValue: before.status,
     newValue: status,
+  })
+
+  revalidatePath("/dashboard")
+  revalidatePath(`/projects/${projectId}`)
+  return project
+}
+
+export async function updateProjectPriority(
+  projectId: string,
+  priority: ProjectPriority
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  const before = await prisma.project.findUniqueOrThrow({ where: { id: projectId } })
+  const project = await prisma.project.update({
+    where: { id: projectId },
+    data: { priority },
+  })
+
+  await logActivity({
+    entityType: "PROJECT",
+    entityId: projectId,
+    userId: user.id,
+    action: "PRIORITY_CHANGED",
+    field: "priority",
+    oldValue: before.priority,
+    newValue: priority,
   })
 
   revalidatePath("/dashboard")

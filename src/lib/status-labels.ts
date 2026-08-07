@@ -55,3 +55,21 @@ export const taskHealthDotColor: Record<string, string> = {
 // Ordered from most to least severe, used to roll many tasks' health
 // up into a single overall project indicator.
 export const TASK_HEALTH_SEVERITY = ["DELAYED", "AT_RISK", "ON_TRACK"] as const
+
+export const projectPriorityLabels: Record<string, string> = {
+  URGENT: "緊急",
+  HIGH: "高",
+  MEDIUM: "中",
+  LOW: "低",
+}
+
+export const projectPriorityBadgeClass: Record<string, string> = {
+  URGENT: "bg-red-600 text-white hover:bg-red-600/90",
+  HIGH: "bg-orange-500 text-white hover:bg-orange-500/90",
+  MEDIUM: "bg-amber-400 text-black hover:bg-amber-400/90",
+  LOW: "bg-muted text-muted-foreground hover:bg-muted/90",
+}
+
+// Ordered from highest to lowest, used both for the dashboard's default
+// sort and to rank a numeric weight for comparisons.
+export const PROJECT_PRIORITY_ORDER = ["URGENT", "HIGH", "MEDIUM", "LOW"] as const
