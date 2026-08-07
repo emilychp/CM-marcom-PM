@@ -17,6 +17,7 @@ import { ProjectStatusSelect } from "@/components/project-status-select"
 import { ProjectPrioritySelect } from "@/components/project-priority-select"
 import { ProjectNameEditor } from "@/components/project-name-editor"
 import { ProjectOwnerSelect } from "@/components/project-owner-select"
+import { ProjectDescriptionEditor } from "@/components/project-description-editor"
 import { PhaseList } from "@/components/phase-list"
 import { AddPhaseForm } from "@/components/add-phase-form"
 import { MembersPanel } from "@/components/members-panel"
@@ -106,11 +107,11 @@ export default async function ProjectDetailPage({
                   {projectPriorityLabels[project.priority]}
                 </Badge>
               </div>
-              {project.description && (
-                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                  {project.description}
-                </p>
-              )}
+              <ProjectDescriptionEditor
+                projectId={project.id}
+                description={project.description}
+                manageable={manageable}
+              />
               <div className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
                 <span>負責人：</span>
                 {manageable ? (

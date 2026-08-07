@@ -90,6 +90,7 @@ enum ActivityAction {
   PRIORITY_CHANGED
   NAME_CHANGED
   OWNER_CHANGED
+  DESCRIPTION_CHANGED
 }
 
 model User {

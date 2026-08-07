@@ -16,6 +16,7 @@ const actionLabels: Record<string, string> = {
   PRIORITY_CHANGED: "變更優先性",
   NAME_CHANGED: "變更專案名稱",
   OWNER_CHANGED: "變更負責人",
+  DESCRIPTION_CHANGED: "更新專案說明",
 }
 
 type ActivityEntry = {

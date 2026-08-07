@@ -151,6 +151,28 @@ export async function updateProjectName(projectId: string, name: string) {
   return project
 }
 
+export async function updateProjectDescription(projectId: string, description: string) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  const project = await prisma.project.update({
+    where: { id: projectId },
+    data: { description: description.trim() || null },
+  })
+
+  await logActivity({
+    entityType: "PROJECT",
+    entityId: projectId,
+    userId: user.id,
+    action: "DESCRIPTION_CHANGED",
+  })
+
+  revalidatePath("/dashboard")
+  revalidatePath(`/projects/${projectId}`)
+  return project
+}
+
 export async function updateProjectOwner(projectId: string, ownerId: string) {
   const user = await requireUser()
   const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
