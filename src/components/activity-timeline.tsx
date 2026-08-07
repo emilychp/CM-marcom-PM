@@ -19,6 +19,14 @@ const actionLabels: Record<string, string> = {
   DESCRIPTION_CHANGED: "更新專案說明",
 }
 
+const fieldLabels: Record<string, string> = {
+  phase_renamed: "階段名稱",
+  phase_schedule: "階段時程",
+  project_dates: "專案時程",
+}
+
+const noSuffixFields = new Set(["health", "priority", "name", "owner"])
+
 type ActivityEntry = {
   id: string
   action: string
@@ -45,9 +53,8 @@ export function ActivityTimeline({ activity }: { activity: ActivityEntry[] }) {
                 <span className="font-medium">{entry.user.name}</span>{" "}
                 <span className="text-muted-foreground">
                   {actionLabels[entry.action] ?? entry.action}
-                  {entry.field &&
-                  !["health", "priority", "name", "owner"].includes(entry.field)
-                    ? `（${entry.field}）`
+                  {entry.field && !noSuffixFields.has(entry.field)
+                    ? `（${fieldLabels[entry.field] ?? entry.field}）`
                     : ""}
                   {(() => {
                     const format = (v: string) =>

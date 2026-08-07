@@ -41,6 +41,13 @@ enum PhaseStatus {
   DONE
 }
 
+enum RecurrenceFrequency {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
 enum TaskStatus {
   TODO
   IN_PROGRESS
@@ -145,14 +152,18 @@ model ProjectMember {
 }
 
 model Phase {
-  id        String      @id @default(cuid())
-  projectId String
-  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name      String
-  order     Int         @default(0)
-  status    PhaseStatus @default(NOT_STARTED)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id                  String               @id @default(cuid())
+  projectId           String
+  project             Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name                String
+  order               Int                  @default(0)
+  status              PhaseStatus          @default(NOT_STARTED)
+  startDate           DateTime?
+  dueDate             DateTime?
+  isRecurring         Boolean              @default(false)
+  recurrenceFrequency RecurrenceFrequency?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 
   tasks Task[]
 

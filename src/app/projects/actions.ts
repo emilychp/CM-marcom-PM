@@ -16,6 +16,7 @@ import type {
   TaskHealth,
   FieldType,
   FieldScope,
+  RecurrenceFrequency,
 } from "@/generated/prisma/enums"
 
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024 // 10MB
@@ -166,6 +167,35 @@ export async function updateProjectDescription(projectId: string, description: s
     entityId: projectId,
     userId: user.id,
     action: "DESCRIPTION_CHANGED",
+  })
+
+  revalidatePath("/dashboard")
+  revalidatePath(`/projects/${projectId}`)
+  return project
+}
+
+export async function updateProjectDates(
+  projectId: string,
+  data: { startDate: string | null; dueDate: string | null }
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  const project = await prisma.project.update({
+    where: { id: projectId },
+    data: {
+      startDate: data.startDate ? new Date(data.startDate) : null,
+      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+    },
+  })
+
+  await logActivity({
+    entityType: "PROJECT",
+    entityId: projectId,
+    userId: user.id,
+    action: "UPDATED",
+    field: "project_dates",
   })
 
   revalidatePath("/dashboard")
@@ -362,6 +392,42 @@ export async function updatePhase(
     field: "phase_renamed",
     oldValue: before.name,
     newValue: data.name,
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  return phase
+}
+
+export async function updatePhaseSchedule(
+  phaseId: string,
+  projectId: string,
+  data: {
+    startDate: string | null
+    dueDate: string | null
+    isRecurring: boolean
+    recurrenceFrequency: RecurrenceFrequency | null
+  }
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  const phase = await prisma.phase.update({
+    where: { id: phaseId },
+    data: {
+      startDate: data.startDate ? new Date(data.startDate) : null,
+      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      isRecurring: data.isRecurring,
+      recurrenceFrequency: data.isRecurring ? data.recurrenceFrequency : null,
+    },
+  })
+
+  await logActivity({
+    entityType: "PROJECT",
+    entityId: projectId,
+    userId: user.id,
+    action: "UPDATED",
+    field: "phase_schedule",
   })
 
   revalidatePath(`/projects/${projectId}`)

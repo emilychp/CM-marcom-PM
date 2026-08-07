@@ -17,6 +17,7 @@ import { phaseStatusLabels } from "@/lib/status-labels"
 import { TaskRow } from "@/components/task-row"
 import { AddTaskForm } from "@/components/add-task-form"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
+import { PhaseScheduleDialog } from "@/components/phase-schedule-dialog"
 import type { EffectiveRole } from "@/lib/permissions"
 
 type Task = {
@@ -34,6 +35,10 @@ type Phase = {
   id: string
   name: string
   status: string
+  startDate: Date | null
+  dueDate: Date | null
+  isRecurring: boolean
+  recurrenceFrequency: string | null
   tasks: Task[]
 }
 
@@ -144,7 +149,8 @@ function PhaseItem({
 
   return (
     <div className="rounded-lg border">
-      <div className="flex w-full items-center justify-between gap-3 px-4 py-3">
+      <div className="px-4 py-3">
+        <div className="flex w-full items-center justify-between gap-3">
         <div className="flex flex-1 items-center gap-2">
           <button
             type="button"
@@ -240,6 +246,18 @@ function PhaseItem({
               onConfirm={handleDelete}
             />
           )}
+        </div>
+        </div>
+        <div className="mt-1.5 pl-6">
+          <PhaseScheduleDialog
+            projectId={projectId}
+            phaseId={phase.id}
+            startDate={phase.startDate}
+            dueDate={phase.dueDate}
+            isRecurring={phase.isRecurring}
+            recurrenceFrequency={phase.recurrenceFrequency}
+            manageable={manageable}
+          />
         </div>
       </div>
       {open && (

@@ -18,6 +18,7 @@ import { ProjectPrioritySelect } from "@/components/project-priority-select"
 import { ProjectNameEditor } from "@/components/project-name-editor"
 import { ProjectOwnerSelect } from "@/components/project-owner-select"
 import { ProjectDescriptionEditor } from "@/components/project-description-editor"
+import { ProjectDatesDialog } from "@/components/project-dates-dialog"
 import { PhaseList } from "@/components/phase-list"
 import { AddPhaseForm } from "@/components/add-phase-form"
 import { MembersPanel } from "@/components/members-panel"
@@ -123,8 +124,13 @@ export default async function ProjectDetailPage({
                 ) : (
                   <span>{project.owner.name}</span>
                 )}
-                {project.dueDate &&
-                  ` ・ 截止日期：${new Date(project.dueDate).toLocaleDateString("zh-TW")}`}
+                <span>・</span>
+                <ProjectDatesDialog
+                  projectId={project.id}
+                  startDate={project.startDate}
+                  dueDate={project.dueDate}
+                  manageable={manageable}
+                />
               </div>
             </div>
             {manageable && (

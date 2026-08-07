@@ -73,3 +73,10 @@ export const projectPriorityBadgeClass: Record<string, string> = {
 // Ordered from highest to lowest, used both for the dashboard's default
 // sort and to rank a numeric weight for comparisons.
 export const PROJECT_PRIORITY_ORDER = ["URGENT", "HIGH", "MEDIUM", "LOW"] as const
+
+export const recurrenceFrequencyLabels: Record<string, string> = {
+  WEEKLY: "每週",
+  MONTHLY: "每月",
+  QUARTERLY: "每季",
+  YEARLY: "每年",
+}
