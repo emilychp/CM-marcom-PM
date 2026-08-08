@@ -3,7 +3,49 @@ import { NavBar } from "@/components/nav-bar"
 import { ProjectCard } from "@/components/project-card"
 import { NewProjectDialog } from "@/components/new-project-dialog"
 import { StatusFilter } from "./status-filter"
+import { ViewModeSelect } from "./view-mode-select"
 import { getProjectsForUser } from "@/lib/projects-data"
+import {
+  PROJECT_PRIORITY_ORDER,
+  PROJECT_STATUS_ORDER,
+  projectPriorityLabels,
+  projectStatusLabels,
+} from "@/lib/status-labels"
+
+type Project = Awaited<ReturnType<typeof getProjectsForUser>>[number]
+
+function groupProjects(
+  projects: Project[],
+  view: string
+): { label: string; projects: Project[] }[] {
+  if (view === "OWNER") {
+    const map = new Map<string, Project[]>()
+    for (const project of projects) {
+      const key = project.owner?.name ?? "未指定"
+      if (!map.has(key)) map.set(key, [])
+      map.get(key)!.push(project)
+    }
+    return Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0], "zh-Hant"))
+      .map(([label, groupProjects]) => ({ label, projects: groupProjects }))
+  }
+
+  if (view === "PRIORITY") {
+    return PROJECT_PRIORITY_ORDER.map((priority) => ({
+      label: projectPriorityLabels[priority],
+      projects: projects.filter((project) => project.priority === priority),
+    })).filter((group) => group.projects.length > 0)
+  }
+
+  if (view === "STATUS") {
+    return PROJECT_STATUS_ORDER.map((status) => ({
+      label: projectStatusLabels[status],
+      projects: projects.filter((project) => project.status === status),
+    })).filter((group) => group.projects.length > 0)
+  }
+
+  return [{ label: "", projects }]
+}
 
 export default async function DashboardPage({
   searchParams,
@@ -16,11 +58,14 @@ export default async function DashboardPage({
   const params = await searchParams
   const statusFilter =
     typeof params.status === "string" ? params.status : undefined
+  const viewMode = typeof params.view === "string" ? params.view : "ALL"
 
   const allProjects = await getProjectsForUser(session.user)
   const projects = statusFilter
     ? allProjects.filter((p) => p.status === statusFilter)
     : allProjects
+
+  const groups = groupProjects(projects, viewMode)
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/20">
@@ -34,6 +79,7 @@ export default async function DashboardPage({
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <ViewModeSelect />
             <StatusFilter />
             <NewProjectDialog />
           </div>
@@ -44,9 +90,21 @@ export default async function DashboardPage({
             <p>目前沒有符合條件的專案</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
+          <div className="space-y-8">
+            {groups.map((group) => (
+              <section key={group.label || "all"}>
+                {group.label && (
+                  <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                    {group.label}
+                    <span className="font-normal">（{group.projects.length}）</span>
+                  </h2>
+                )}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {group.projects.map((project) => (
+                    <ProjectCard key={project.id} project={project} />
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         )}

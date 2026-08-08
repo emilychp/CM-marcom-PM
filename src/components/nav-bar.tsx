@@ -15,6 +15,14 @@ export async function NavBar() {
           <Link href="/dashboard" className="text-lg font-semibold">
             專案儀表板
           </Link>
+          {user && (
+            <Link
+              href="/my-tasks"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              我的任務
+            </Link>
+          )}
           {user?.globalRole === "ADMIN" && (
             <Link
               href="/admin/users"
