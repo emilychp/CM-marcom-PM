@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { Prisma } from "@/generated/prisma/client"
 import { TASK_HEALTH_SEVERITY, PROJECT_PRIORITY_ORDER } from "@/lib/status-labels"
 
 const NOTE_SNIPPET_LENGTH = 60
@@ -37,15 +38,9 @@ function pickHighlightNote(
   return `${top.phaseName}：${snippet}`
 }
 
-export async function getProjectsForUser(user: {
-  id: string
-  globalRole: "ADMIN" | "MEMBER"
-}) {
+async function fetchAndMapProjects(where: Prisma.ProjectWhereInput) {
   const projects = await prisma.project.findMany({
-    where:
-      user.globalRole === "ADMIN"
-        ? {}
-        : { members: { some: { userId: user.id } } },
+    where,
     include: {
       owner: { select: { id: true, name: true } },
       members: { select: { userId: true } },
@@ -109,6 +104,19 @@ export async function getProjectsForUser(user: {
     if (priorityDiff !== 0) return priorityDiff
     return b.updatedAt.getTime() - a.updatedAt.getTime()
   })
+}
+
+export async function getProjectsForUser(user: {
+  id: string
+  globalRole: "ADMIN" | "MEMBER"
+}) {
+  return fetchAndMapProjects(
+    user.globalRole === "ADMIN" ? {} : { members: { some: { userId: user.id } } }
+  )
+}
+
+export async function getMyProjects(userId: string) {
+  return fetchAndMapProjects({ ownerId: userId })
 }
 
 export function computeProjectProgress(

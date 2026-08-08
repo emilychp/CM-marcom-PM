@@ -17,6 +17,14 @@ export async function NavBar() {
           </Link>
           {user && (
             <Link
+              href="/my-projects"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              我的專案
+            </Link>
+          )}
+          {user && (
+            <Link
               href="/my-tasks"
               className="text-sm text-muted-foreground hover:text-foreground"
             >
