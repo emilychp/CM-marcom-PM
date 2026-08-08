@@ -271,6 +271,8 @@ function PhaseItem({
               currentUserId={currentUserId}
               manageable={manageable}
               allUsers={allUsers}
+              phaseStartDate={phase.startDate}
+              phaseDueDate={phase.dueDate}
             />
           ))}
           {taskCount === 0 && (

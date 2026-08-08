@@ -597,13 +597,28 @@ export async function updateTask(
   const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
   if (!canManageProject(role)) throw new Error("FORBIDDEN")
 
+  const dueDate = data.dueDate ? new Date(data.dueDate) : null
+
+  if (dueDate) {
+    const phase = await prisma.phase.findFirstOrThrow({
+      where: { tasks: { some: { id: taskId } } },
+      select: { startDate: true, dueDate: true },
+    })
+    if (phase.startDate && dueDate < phase.startDate) {
+      return { ok: false as const, error: "TASK_DUE_DATE_BEFORE_PHASE_START" as const }
+    }
+    if (phase.dueDate && dueDate > phase.dueDate) {
+      return { ok: false as const, error: "TASK_DUE_DATE_AFTER_PHASE_DUE" as const }
+    }
+  }
+
   const task = await prisma.task.update({
     where: { id: taskId },
     data: {
       title: data.title,
       description: data.description || null,
       assigneeId: data.assigneeId || null,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      dueDate,
     },
   })
 
@@ -616,7 +631,7 @@ export async function updateTask(
 
   revalidatePath(`/projects/${projectId}`)
   revalidatePath("/dashboard")
-  return task
+  return { ok: true as const, task }
 }
 
 export async function deleteTask(taskId: string, projectId: string) {

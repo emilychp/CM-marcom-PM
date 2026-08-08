@@ -40,6 +40,8 @@ export function TaskRow({
   currentUserId,
   manageable,
   allUsers,
+  phaseStartDate,
+  phaseDueDate,
 }: {
   projectId: string
   task: Task
@@ -47,6 +49,8 @@ export function TaskRow({
   currentUserId: string
   manageable: boolean
   allUsers: { id: string; name: string }[]
+  phaseStartDate: Date | null
+  phaseDueDate: Date | null
 }) {
   const canEdit =
     role === "ADMIN" ||
@@ -206,7 +210,13 @@ export function TaskRow({
 
       {manageable && (
         <div className="flex items-center gap-2">
-          <EditTaskDialog projectId={projectId} task={task} allUsers={allUsers} />
+          <EditTaskDialog
+            projectId={projectId}
+            task={task}
+            allUsers={allUsers}
+            phaseStartDate={phaseStartDate}
+            phaseDueDate={phaseDueDate}
+          />
           <ConfirmDeleteDialog
             trigger={
               <button
