@@ -51,6 +51,7 @@ type Phase = {
 
 export function PhaseList({
   projectId,
+  coverAttachmentId,
   phases,
   role,
   currentUserId,
@@ -58,6 +59,7 @@ export function PhaseList({
   allUsers,
 }: {
   projectId: string
+  coverAttachmentId: string | null
   phases: Phase[]
   role: EffectiveRole
   currentUserId: string
@@ -78,6 +80,7 @@ export function PhaseList({
         <PhaseItem
           key={phase.id}
           projectId={projectId}
+          coverAttachmentId={coverAttachmentId}
           phase={phase}
           role={role}
           currentUserId={currentUserId}
@@ -91,6 +94,7 @@ export function PhaseList({
 
 function PhaseItem({
   projectId,
+  coverAttachmentId,
   phase,
   role,
   currentUserId,
@@ -98,6 +102,7 @@ function PhaseItem({
   allUsers,
 }: {
   projectId: string
+  coverAttachmentId: string | null
   phase: Phase
   role: EffectiveRole
   currentUserId: string
@@ -273,6 +278,7 @@ function PhaseItem({
             <TaskRow
               key={task.id}
               projectId={projectId}
+              coverAttachmentId={coverAttachmentId}
               task={task}
               role={role}
               currentUserId={currentUserId}

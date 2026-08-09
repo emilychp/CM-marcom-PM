@@ -43,6 +43,7 @@ type Task = {
 
 export function TaskRow({
   projectId,
+  coverAttachmentId,
   task,
   role,
   currentUserId,
@@ -52,6 +53,7 @@ export function TaskRow({
   phaseDueDate,
 }: {
   projectId: string
+  coverAttachmentId: string | null
   task: Task
   role: EffectiveRole
   currentUserId: string
@@ -144,6 +146,7 @@ export function TaskRow({
         />
         <TaskAttachments
           projectId={projectId}
+          coverAttachmentId={coverAttachmentId}
           taskId={task.id}
           attachments={task.attachments}
           currentUserId={currentUserId}

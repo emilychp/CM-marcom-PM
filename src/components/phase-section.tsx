@@ -38,6 +38,7 @@ type Phase = {
 
 export function PhaseSection({
   projectId,
+  coverAttachmentId,
   phases,
   role,
   currentUserId,
@@ -47,6 +48,7 @@ export function PhaseSection({
   projectDueDate,
 }: {
   projectId: string
+  coverAttachmentId: string | null
   phases: Phase[]
   role: EffectiveRole
   currentUserId: string
@@ -95,6 +97,7 @@ export function PhaseSection({
       {view === "LIST" ? (
         <PhaseList
           projectId={projectId}
+          coverAttachmentId={coverAttachmentId}
           phases={phases}
           role={role}
           currentUserId={currentUserId}

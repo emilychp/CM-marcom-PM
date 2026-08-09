@@ -179,6 +179,7 @@ export default async function ProjectDetailPage({
 
         <PhaseSection
           projectId={project.id}
+          coverAttachmentId={project.coverAttachmentId}
           phases={project.phases}
           role={role}
           currentUserId={session.user.id}

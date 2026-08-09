@@ -2,8 +2,12 @@
 
 import { useRef, useTransition } from "react"
 import { toast } from "sonner"
-import { Paperclip, X, File as FileIcon } from "lucide-react"
-import { uploadTaskAttachment, deleteTaskAttachment } from "@/app/projects/actions"
+import { Paperclip, X, File as FileIcon, Star } from "lucide-react"
+import {
+  uploadTaskAttachment,
+  deleteTaskAttachment,
+  setProjectCoverAttachment,
+} from "@/app/projects/actions"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { generatePdfThumbnail } from "@/lib/pdf-thumbnail"
 
@@ -23,6 +27,7 @@ const UPLOAD_ERROR_MESSAGES: Record<string, string> = {
 
 export function TaskAttachments({
   projectId,
+  coverAttachmentId,
   taskId,
   attachments,
   currentUserId,
@@ -30,6 +35,7 @@ export function TaskAttachments({
   canEdit,
 }: {
   projectId: string
+  coverAttachmentId: string | null
   taskId: string
   attachments: Attachment[]
   currentUserId: string
@@ -73,6 +79,17 @@ export function TaskAttachments({
     })
   }
 
+  function handleToggleCover(attachmentId: string, isCurrentCover: boolean) {
+    startTransition(async () => {
+      try {
+        await setProjectCoverAttachment(projectId, isCurrentCover ? null : attachmentId)
+        toast.success(isCurrentCover ? "已取消封面圖" : "已設為封面圖")
+      } catch {
+        toast.error("設定失敗")
+      }
+    })
+  }
+
   if (attachments.length === 0 && !canEdit) return null
 
   return (
@@ -86,6 +103,8 @@ export function TaskAttachments({
             ? `${fileUrl}?thumbnail=1`
             : null
         const canDelete = manageable || attachment.uploader.id === currentUserId
+        const isCover = attachment.id === coverAttachmentId
+        const canPickCover = manageable && !!previewUrl
 
         return (
           <div key={attachment.id} className="group relative">
@@ -94,7 +113,9 @@ export function TaskAttachments({
               target="_blank"
               rel="noopener noreferrer"
               title={attachment.filename}
-              className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md border bg-muted"
+              className={`flex h-9 w-9 items-center justify-center overflow-hidden rounded-md border bg-muted ${
+                isCover ? "ring-2 ring-primary" : ""
+              }`}
             >
               {previewUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -107,6 +128,21 @@ export function TaskAttachments({
                 <FileIcon className="h-4 w-4 text-muted-foreground" />
               )}
             </a>
+            {canPickCover && (
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => handleToggleCover(attachment.id, isCover)}
+                title={isCover ? "取消設為封面圖" : "設為封面圖"}
+                className={`absolute -top-1.5 -left-1.5 rounded-full bg-background p-0.5 shadow transition-opacity hover:text-primary ${
+                  isCover
+                    ? "text-primary opacity-100"
+                    : "text-muted-foreground opacity-0 group-hover:opacity-100"
+                }`}
+              >
+                <Star className="h-3 w-3" fill={isCover ? "currentColor" : "none"} />
+              </button>
+            )}
             {canDelete && (
               <ConfirmDeleteDialog
                 trigger={
