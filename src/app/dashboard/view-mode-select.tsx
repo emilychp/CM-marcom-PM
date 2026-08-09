@@ -34,7 +34,7 @@ export function ViewModeSelect() {
 
   return (
     <Select value={current} onValueChange={handleChange}>
-      <SelectTrigger className="w-36">
+      <SelectTrigger className="w-36 bg-card">
         <SelectValue placeholder="檢視模式">
           {(value: string | null) => viewModeLabels[value ?? "ALL"]}
         </SelectValue>

@@ -28,7 +28,7 @@ export function StatusFilter() {
 
   return (
     <Select value={current} onValueChange={handleChange}>
-      <SelectTrigger className="w-40">
+      <SelectTrigger className="w-40 bg-card">
         <SelectValue placeholder="篩選狀態">
           {(value: string | null) =>
             !value || value === "ALL" ? "全部狀態" : projectStatusLabels[value]
