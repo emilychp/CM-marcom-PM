@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 import { requireUser } from "@/lib/session"
-import type { GlobalRole } from "@/generated/prisma/enums"
+import type { GlobalRole, StaffTier } from "@/generated/prisma/enums"
 
 async function requireAdmin() {
   const user = await requireUser()
@@ -56,6 +56,18 @@ export async function updateUserGlobalRole(userId: string, globalRole: GlobalRol
   })
 
   revalidatePath("/admin/users")
+}
+
+export async function updateUserStaffTier(userId: string, staffTier: StaffTier) {
+  await requireAdmin()
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { staffTier },
+  })
+
+  revalidatePath("/admin/users")
+  revalidatePath("/workload")
 }
 
 export async function deleteUser(userId: string) {

@@ -31,12 +31,21 @@ type ProjectCardData = {
   statusCounts: Record<string, number>
   health: string | null
   highlightNote: string | null
+  previewImage: { id: string; isDirectImage: boolean } | null
 }
 
 export function ProjectCard({ project }: { project: ProjectCardData }) {
   return (
-    <Link href={`/projects/${project.id}`}>
-      <Card className="h-full transition-shadow hover:shadow-md">
+    <Link href={`/projects/${project.id}`} className="mb-4 block break-inside-avoid">
+      <Card className="overflow-hidden transition-shadow hover:shadow-md">
+        {project.previewImage && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={`/api/attachments/${project.previewImage.id}${project.previewImage.isDirectImage ? "" : "?thumbnail"}`}
+            alt=""
+            className="h-44 w-full object-cover"
+          />
+        )}
         <CardHeader>
           <div className="flex items-start justify-between gap-2">
             <CardTitle className="line-clamp-1">{project.name}</CardTitle>

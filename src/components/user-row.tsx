@@ -2,7 +2,11 @@
 
 import { useState, useTransition } from "react"
 import { toast } from "sonner"
-import { updateUserGlobalRole, deleteUser } from "@/app/admin/users/actions"
+import {
+  updateUserGlobalRole,
+  updateUserStaffTier,
+  deleteUser,
+} from "@/app/admin/users/actions"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   Select,
@@ -13,11 +17,16 @@ import {
 } from "@/components/ui/select"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { Trash2 } from "lucide-react"
-import type { GlobalRole } from "@/generated/prisma/enums"
+import type { GlobalRole, StaffTier } from "@/generated/prisma/enums"
 
 const globalRoleLabels: Record<string, string> = {
   ADMIN: "系統管理員",
   MEMBER: "一般成員",
+}
+
+const staffTierLabels: Record<string, string> = {
+  EXECUTION: "專案執行",
+  MANAGEMENT: "管理層",
 }
 
 const DELETE_ERROR_MESSAGES: Record<string, string> = {
@@ -30,11 +39,13 @@ type User = {
   name: string
   email: string
   globalRole: string
+  staffTier: string
   createdAt: Date
 }
 
 export function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
   const [role, setRole] = useState(user.globalRole)
+  const [tier, setTier] = useState(user.staffTier)
   const [isPending, startTransition] = useTransition()
 
   function handleRoleChange(value: string | null) {
@@ -48,6 +59,21 @@ export function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
       } catch {
         toast.error("更新失敗")
         setRole(previous)
+      }
+    })
+  }
+
+  function handleTierChange(value: string | null) {
+    if (!value) return
+    const previous = tier
+    setTier(value)
+    startTransition(async () => {
+      try {
+        await updateUserStaffTier(user.id, value as StaffTier)
+        toast.success("身份已更新")
+      } catch {
+        toast.error("更新失敗")
+        setTier(previous)
       }
     })
   }
@@ -79,6 +105,20 @@ export function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
+        <Select value={tier} onValueChange={handleTierChange} disabled={isPending}>
+          <SelectTrigger size="sm" className="w-28">
+            <SelectValue>
+              {(value: string | null) => (value ? staffTierLabels[value] : "")}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(staffTierLabels).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={role} onValueChange={handleRoleChange} disabled={isPending || isSelf}>
           <SelectTrigger size="sm" className="w-32">
             <SelectValue>

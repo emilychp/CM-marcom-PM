@@ -25,7 +25,7 @@ export default async function MyProjectsPage() {
             <p>目前沒有你負責的專案</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="columns-1 gap-4 sm:columns-2 lg:columns-3">
             {projects.map((project) => (
               <ProjectCard key={project.id} project={project} />
             ))}

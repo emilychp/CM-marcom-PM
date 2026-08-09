@@ -61,6 +61,23 @@ async function fetchAndMapProjects(where: Prisma.ProjectWhereInput) {
     orderBy: { updatedAt: "desc" },
   })
 
+  const previewAttachments = await prisma.attachment.findMany({
+    where: {
+      projectId: { in: projects.map((p) => p.id) },
+      OR: [{ mimeType: { startsWith: "image/" } }, { thumbnailStorageKey: { not: null } }],
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, projectId: true, mimeType: true, thumbnailStorageKey: true },
+  })
+  const previewByProject = new Map<string, { id: string; isDirectImage: boolean }>()
+  for (const attachment of previewAttachments) {
+    if (previewByProject.has(attachment.projectId)) continue
+    previewByProject.set(attachment.projectId, {
+      id: attachment.id,
+      isDirectImage: attachment.mimeType.startsWith("image/"),
+    })
+  }
+
   return projects.map((project) => {
     const allTasks = project.phases.flatMap((phase) => phase.tasks)
     const progress =
@@ -96,6 +113,7 @@ async function fetchAndMapProjects(where: Prisma.ProjectWhereInput) {
       statusCounts,
       health: pickWorstHealth(allTasks),
       highlightNote: pickHighlightNote(project.phases),
+      previewImage: previewByProject.get(project.id) ?? null,
     }
   }).sort((a, b) => {
     const priorityDiff =

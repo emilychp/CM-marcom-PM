@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 
 export async function getWorkloadSummary() {
   const users = await prisma.user.findMany({
+    where: { staffTier: "EXECUTION" },
     orderBy: { name: "asc" },
     select: {
       id: true,

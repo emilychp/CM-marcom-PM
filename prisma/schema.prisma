@@ -15,6 +15,11 @@ enum GlobalRole {
   MEMBER
 }
 
+enum StaffTier {
+  EXECUTION
+  MANAGEMENT
+}
+
 enum ProjectRole {
   MANAGER
   MEMBER
@@ -111,6 +116,7 @@ model User {
   email        String     @unique
   passwordHash String
   globalRole   GlobalRole @default(MEMBER)
+  staffTier    StaffTier  @default(EXECUTION)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 

@@ -99,7 +99,7 @@ export default async function DashboardPage({
                     <span className="font-normal">（{group.projects.length}）</span>
                   </h2>
                 )}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="columns-1 gap-4 sm:columns-2 lg:columns-3">
                   {group.projects.map((project) => (
                     <ProjectCard key={project.id} project={project} />
                   ))}
