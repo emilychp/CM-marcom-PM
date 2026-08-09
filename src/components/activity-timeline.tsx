@@ -17,12 +17,18 @@ const actionLabels: Record<string, string> = {
   NAME_CHANGED: "變更專案名稱",
   OWNER_CHANGED: "變更負責人",
   DESCRIPTION_CHANGED: "更新專案說明",
+  COMMENT_ADDED: "發表留言",
+  COMMENT_REMOVED: "刪除留言",
+  MEETING_NOTE_ADDED: "新增會議記錄",
+  MEETING_NOTE_UPDATED: "更新會議記錄",
+  MEETING_NOTE_REMOVED: "刪除會議記錄",
 }
 
 const fieldLabels: Record<string, string> = {
   phase_renamed: "階段名稱",
   phase_schedule: "階段時程",
   project_dates: "專案時程",
+  meeting_note: "會議記錄",
 }
 
 const noSuffixFields = new Set(["health", "priority", "name", "owner"])

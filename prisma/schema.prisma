@@ -98,6 +98,11 @@ enum ActivityAction {
   NAME_CHANGED
   OWNER_CHANGED
   DESCRIPTION_CHANGED
+  COMMENT_ADDED
+  COMMENT_REMOVED
+  MEETING_NOTE_ADDED
+  MEETING_NOTE_UPDATED
+  MEETING_NOTE_REMOVED
 }
 
 model User {
@@ -114,6 +119,8 @@ model User {
   assignedTasks Task[]          @relation("TaskAssignee")
   activityLogs  ActivityLog[]
   attachments   Attachment[]    @relation("AttachmentUploader")
+  comments      Comment[]       @relation("CommentAuthor")
+  meetingNotes  MeetingNote[]   @relation("MeetingNoteAuthor")
 }
 
 model Project {
@@ -133,9 +140,39 @@ model Project {
   members     ProjectMember[]
   phases      Phase[]
   fieldDefs   FieldDefinition[]
-  attachments Attachment[]
+  attachments  Attachment[]
+  comments     Comment[]
+  meetingNotes MeetingNote[]
 
   @@index([ownerId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("CommentAuthor", fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+}
+
+model MeetingNote {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("MeetingNoteAuthor", fields: [authorId], references: [id])
+  title     String
+  content   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attachments Attachment[]
+
+  @@index([projectId])
 }
 
 model ProjectMember {
@@ -230,8 +267,10 @@ model Attachment {
   id         String   @id @default(cuid())
   projectId  String
   project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  taskId     String?
-  task       Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId        String?
+  task          Task?        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  meetingNoteId String?
+  meetingNote   MeetingNote? @relation(fields: [meetingNoteId], references: [id], onDelete: Cascade)
   uploaderId String
   uploader   User     @relation("AttachmentUploader", fields: [uploaderId], references: [id])
   filename            String
@@ -243,6 +282,7 @@ model Attachment {
 
   @@index([projectId])
   @@index([taskId])
+  @@index([meetingNoteId])
 }
 
 model ActivityLog {

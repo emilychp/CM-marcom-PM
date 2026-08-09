@@ -25,6 +25,8 @@ import { MembersPanel } from "@/components/members-panel"
 import { CustomFieldsPanel } from "@/components/custom-fields-panel"
 import { ActivityTimeline } from "@/components/activity-timeline"
 import { AttachmentsPanel } from "@/components/attachments-panel"
+import { MeetingNotesPanel } from "@/components/meeting-notes-panel"
+import { CommentsPanel } from "@/components/comments-panel"
 import { DeleteProjectDialog } from "@/components/delete-project-dialog"
 
 export default async function ProjectDetailPage({
@@ -62,9 +64,23 @@ export default async function ProjectDetailPage({
         include: { values: { where: { entityId: id } } },
       },
       attachments: {
-        where: { taskId: null },
+        where: { taskId: null, meetingNoteId: null },
         orderBy: { createdAt: "desc" },
         include: { uploader: { select: { id: true, name: true } } },
+      },
+      comments: {
+        orderBy: { createdAt: "desc" },
+        include: { author: { select: { id: true, name: true } } },
+      },
+      meetingNotes: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          author: { select: { id: true, name: true } },
+          attachments: {
+            orderBy: { createdAt: "desc" },
+            include: { uploader: { select: { id: true, name: true } } },
+          },
+        },
       },
     },
   })
@@ -196,6 +212,20 @@ export default async function ProjectDetailPage({
         <AttachmentsPanel
           projectId={project.id}
           attachments={project.attachments}
+          currentUserId={session.user.id}
+          manageable={manageable}
+        />
+
+        <MeetingNotesPanel
+          projectId={project.id}
+          notes={project.meetingNotes}
+          currentUserId={session.user.id}
+          manageable={manageable}
+        />
+
+        <CommentsPanel
+          projectId={project.id}
+          comments={project.comments}
           currentUserId={session.user.id}
           manageable={manageable}
         />
