@@ -2,8 +2,21 @@
 
 import { useRef, useState, useTransition } from "react"
 import { toast } from "sonner"
-import { FileText, FileSpreadsheet, FileArchive, Presentation, File as FileIcon, Upload, X } from "lucide-react"
-import { uploadAttachment, deleteAttachment } from "@/app/projects/actions"
+import {
+  FileText,
+  FileSpreadsheet,
+  FileArchive,
+  Presentation,
+  File as FileIcon,
+  Upload,
+  X,
+  Star,
+} from "lucide-react"
+import {
+  uploadAttachment,
+  deleteAttachment,
+  setProjectCoverAttachment,
+} from "@/app/projects/actions"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
@@ -43,11 +56,13 @@ export function AttachmentsPanel({
   attachments,
   currentUserId,
   manageable,
+  coverAttachmentId,
 }: {
   projectId: string
   attachments: Attachment[]
   currentUserId: string
   manageable: boolean
+  coverAttachmentId: string | null
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -86,6 +101,17 @@ export function AttachmentsPanel({
         toast.success("附件已刪除")
       } catch {
         toast.error("刪除失敗")
+      }
+    })
+  }
+
+  function handleToggleCover(attachmentId: string, isCurrentCover: boolean) {
+    startTransition(async () => {
+      try {
+        await setProjectCoverAttachment(projectId, isCurrentCover ? null : attachmentId)
+        toast.success(isCurrentCover ? "已取消封面圖" : "已設為封面圖")
+      } catch {
+        toast.error("設定失敗")
       }
     })
   }
@@ -130,11 +156,15 @@ export function AttachmentsPanel({
                 : attachment.thumbnailStorageKey
                   ? `${fileUrl}?thumbnail=1`
                   : null
+              const isCover = attachment.id === coverAttachmentId
+              const canPickCover = manageable && !!previewUrl
 
               return (
                 <div
                   key={attachment.id}
-                  className="group relative overflow-hidden rounded-lg border"
+                  className={`group relative overflow-hidden rounded-lg border ${
+                    isCover ? "ring-2 ring-primary" : ""
+                  }`}
                 >
                   <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="block">
                     <div className="flex aspect-square items-center justify-center bg-muted">
@@ -158,6 +188,26 @@ export function AttachmentsPanel({
                       </p>
                     </div>
                   </a>
+                  {isCover && (
+                    <span className="absolute bottom-1.5 left-1.5 rounded bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
+                      封面圖
+                    </span>
+                  )}
+                  {canPickCover && (
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => handleToggleCover(attachment.id, isCover)}
+                      title={isCover ? "取消設為封面圖" : "設為封面圖"}
+                      className={`absolute top-1.5 left-1.5 rounded-full bg-background/90 p-1 shadow transition-opacity hover:text-primary ${
+                        isCover
+                          ? "text-primary opacity-100"
+                          : "text-muted-foreground opacity-0 group-hover:opacity-100"
+                      }`}
+                    >
+                      <Star className="h-3.5 w-3.5" fill={isCover ? "currentColor" : "none"} />
+                    </button>
+                  )}
                   {canDelete && (
                     <ConfirmDeleteDialog
                       trigger={

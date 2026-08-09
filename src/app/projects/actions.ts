@@ -866,6 +866,29 @@ export async function deleteAttachment(attachmentId: string, projectId: string) 
   revalidatePath(`/projects/${projectId}`)
 }
 
+export async function setProjectCoverAttachment(
+  projectId: string,
+  attachmentId: string | null
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!canManageProject(role)) throw new Error("FORBIDDEN")
+
+  if (attachmentId) {
+    const attachment = await prisma.attachment.findUnique({ where: { id: attachmentId } })
+    if (!attachment || attachment.projectId !== projectId) throw new Error("NOT_FOUND")
+  }
+
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { coverAttachmentId: attachmentId },
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath("/dashboard")
+  revalidatePath("/my-projects")
+}
+
 // ---------- Custom fields ----------
 
 export async function upsertFieldDefinition(

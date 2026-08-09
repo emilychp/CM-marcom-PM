@@ -144,10 +144,13 @@ model Project {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
+  coverAttachmentId String?    @unique
+  coverAttachment   Attachment? @relation("ProjectCover", fields: [coverAttachmentId], references: [id], onDelete: SetNull)
+
   members     ProjectMember[]
   phases      Phase[]
   fieldDefs   FieldDefinition[]
-  attachments  Attachment[]
+  attachments  Attachment[]      @relation("ProjectAttachments")
   comments     Comment[]
   meetingNotes MeetingNote[]
 
@@ -273,7 +276,8 @@ model FieldValue {
 model Attachment {
   id         String   @id @default(cuid())
   projectId  String
-  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project    Project  @relation("ProjectAttachments", fields: [projectId], references: [id], onDelete: Cascade)
+  coverForProject Project? @relation("ProjectCover")
   taskId        String?
   task          Task?        @relation(fields: [taskId], references: [id], onDelete: Cascade)
   meetingNoteId String?

@@ -77,6 +77,18 @@ async function fetchAndMapProjects(where: Prisma.ProjectWhereInput) {
       isDirectImage: attachment.mimeType.startsWith("image/"),
     })
   }
+  // A manually chosen cover attachment overrides the auto-picked "most recent" one.
+  const attachmentsById = new Map(previewAttachments.map((a) => [a.id, a]))
+  for (const project of projects) {
+    if (!project.coverAttachmentId) continue
+    const cover = attachmentsById.get(project.coverAttachmentId)
+    if (cover) {
+      previewByProject.set(project.id, {
+        id: cover.id,
+        isDirectImage: cover.mimeType.startsWith("image/"),
+      })
+    }
+  }
 
   return projects.map((project) => {
     const allTasks = project.phases.flatMap((phase) => phase.tasks)

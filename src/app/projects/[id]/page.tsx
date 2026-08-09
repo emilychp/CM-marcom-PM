@@ -209,6 +209,7 @@ export default async function ProjectDetailPage({
           attachments={project.attachments}
           currentUserId={session.user.id}
           manageable={manageable}
+          coverAttachmentId={project.coverAttachmentId}
         />
 
         <MeetingNotesPanel
