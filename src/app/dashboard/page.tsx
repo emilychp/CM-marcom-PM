@@ -69,7 +69,7 @@ export default async function DashboardPage({
   const canReorder = viewMode === "ALL" && !statusFilter
 
   return (
-    <div className="flex min-h-screen flex-col bg-muted/20">
+    <div className="flex min-h-screen flex-col bg-canvas">
       <NavBar />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         <div className="mb-6 flex items-center justify-between">

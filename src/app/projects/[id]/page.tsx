@@ -111,7 +111,7 @@ export default async function ProjectDetailPage({
   })
 
   return (
-    <div className="flex min-h-screen flex-col bg-muted/20">
+    <div className="flex min-h-screen flex-col bg-canvas">
       <NavBar />
       <main className="mx-auto w-full max-w-5xl flex-1 space-y-6 px-4 py-8">
         <div className="rounded-lg border bg-background p-6">

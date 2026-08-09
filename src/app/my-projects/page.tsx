@@ -10,7 +10,7 @@ export default async function MyProjectsPage() {
   const projects = await getMyProjects(session.user.id)
 
   return (
-    <div className="flex min-h-screen flex-col bg-muted/20">
+    <div className="flex min-h-screen flex-col bg-canvas">
       <NavBar />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         <div className="mb-6">
