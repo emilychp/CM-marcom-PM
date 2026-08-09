@@ -23,6 +23,12 @@ export const phaseStatusLabels: Record<string, string> = {
   DONE: "已完成",
 }
 
+export const phaseStatusBarColor: Record<string, string> = {
+  NOT_STARTED: "bg-muted-foreground/40",
+  IN_PROGRESS: "bg-blue-500",
+  DONE: "bg-emerald-500",
+}
+
 export const taskStatusLabels: Record<string, string> = {
   TODO: "待辦",
   IN_PROGRESS: "進行中",

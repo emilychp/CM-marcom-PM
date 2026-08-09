@@ -19,8 +19,7 @@ import { ProjectNameEditor } from "@/components/project-name-editor"
 import { ProjectOwnerSelect } from "@/components/project-owner-select"
 import { ProjectDescriptionEditor } from "@/components/project-description-editor"
 import { ProjectDatesDialog } from "@/components/project-dates-dialog"
-import { PhaseList } from "@/components/phase-list"
-import { AddPhaseForm } from "@/components/add-phase-form"
+import { PhaseSection } from "@/components/phase-section"
 import { MembersPanel } from "@/components/members-panel"
 import { CustomFieldsPanel } from "@/components/custom-fields-panel"
 import { ActivityTimeline } from "@/components/activity-timeline"
@@ -178,20 +177,16 @@ export default async function ProjectDetailPage({
           </div>
         </div>
 
-        <div className="rounded-lg border bg-background p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">專案流程</h2>
-            {manageable && <AddPhaseForm projectId={project.id} />}
-          </div>
-          <PhaseList
-            projectId={project.id}
-            phases={project.phases}
-            role={role}
-            currentUserId={session.user.id}
-            manageable={manageable}
-            allUsers={allUsers}
-          />
-        </div>
+        <PhaseSection
+          projectId={project.id}
+          phases={project.phases}
+          role={role}
+          currentUserId={session.user.id}
+          manageable={manageable}
+          allUsers={allUsers}
+          projectStartDate={project.startDate}
+          projectDueDate={project.dueDate}
+        />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <CustomFieldsPanel

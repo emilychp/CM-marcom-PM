@@ -33,6 +33,14 @@ export async function NavBar() {
           )}
           {user?.globalRole === "ADMIN" && (
             <Link
+              href="/workload"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              人力分配
+            </Link>
+          )}
+          {user?.globalRole === "ADMIN" && (
+            <Link
               href="/admin/users"
               className="text-sm text-muted-foreground hover:text-foreground"
             >
