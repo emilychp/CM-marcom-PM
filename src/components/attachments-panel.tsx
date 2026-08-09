@@ -2,12 +2,13 @@
 
 import { useRef, useState, useTransition } from "react"
 import { toast } from "sonner"
-import { FileText, FileSpreadsheet, FileArchive, File as FileIcon, Upload, X } from "lucide-react"
+import { FileText, FileSpreadsheet, FileArchive, Presentation, File as FileIcon, Upload, X } from "lucide-react"
 import { uploadAttachment, deleteAttachment } from "@/app/projects/actions"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { formatFileSize } from "@/lib/format"
+import { generatePdfThumbnail } from "@/lib/pdf-thumbnail"
 
 type Attachment = {
   id: string
@@ -15,6 +16,7 @@ type Attachment = {
   mimeType: string
   size: number
   createdAt: Date
+  thumbnailStorageKey: string | null
   uploader: { id: string; name: string }
 }
 
@@ -31,6 +33,8 @@ function FileTypeIcon({ mimeType }: { mimeType: string }) {
     return <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />
   if (mimeType === "application/zip")
     return <FileArchive className="h-8 w-8 text-muted-foreground" />
+  if (mimeType.includes("presentation") || mimeType === "application/vnd.ms-powerpoint")
+    return <Presentation className="h-8 w-8 text-muted-foreground" />
   return <FileIcon className="h-8 w-8 text-muted-foreground" />
 }
 
@@ -55,10 +59,14 @@ export function AttachmentsPanel({
 
   function handleUpload() {
     if (!selectedFile) return
-    const formData = new FormData()
-    formData.set("file", selectedFile)
     startTransition(async () => {
       try {
+        const formData = new FormData()
+        formData.set("file", selectedFile)
+        if (selectedFile.type === "application/pdf") {
+          const thumbnail = await generatePdfThumbnail(selectedFile)
+          if (thumbnail) formData.set("thumbnail", thumbnail)
+        }
         await uploadAttachment(projectId, formData)
         toast.success("附件已上傳")
         setSelectedFile(null)
@@ -94,7 +102,7 @@ export function AttachmentsPanel({
             type="file"
             onChange={handleFileChange}
             disabled={isPending}
-            accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip"
+            accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
             className="text-sm text-muted-foreground file:mr-3 file:rounded-md file:border file:bg-background file:px-3 file:py-1.5 file:text-sm file:font-medium"
           />
           <Button
@@ -117,6 +125,11 @@ export function AttachmentsPanel({
                 manageable || attachment.uploader.id === currentUserId
               const isImage = attachment.mimeType.startsWith("image/")
               const fileUrl = `/api/attachments/${attachment.id}`
+              const previewUrl = isImage
+                ? fileUrl
+                : attachment.thumbnailStorageKey
+                  ? `${fileUrl}?thumbnail=1`
+                  : null
 
               return (
                 <div
@@ -125,10 +138,10 @@ export function AttachmentsPanel({
                 >
                   <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="block">
                     <div className="flex aspect-square items-center justify-center bg-muted">
-                      {isImage ? (
+                      {previewUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={fileUrl}
+                          src={previewUrl}
                           alt={attachment.filename}
                           className="h-full w-full object-cover"
                         />

@@ -5,11 +5,13 @@ import { toast } from "sonner"
 import { Paperclip, X, File as FileIcon } from "lucide-react"
 import { uploadTaskAttachment, deleteTaskAttachment } from "@/app/projects/actions"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
+import { generatePdfThumbnail } from "@/lib/pdf-thumbnail"
 
 type Attachment = {
   id: string
   filename: string
   mimeType: string
+  thumbnailStorageKey: string | null
   uploader: { id: string; name: string }
 }
 
@@ -40,10 +42,14 @@ export function TaskAttachments({
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    const formData = new FormData()
-    formData.set("file", file)
     startTransition(async () => {
       try {
+        const formData = new FormData()
+        formData.set("file", file)
+        if (file.type === "application/pdf") {
+          const thumbnail = await generatePdfThumbnail(file)
+          if (thumbnail) formData.set("thumbnail", thumbnail)
+        }
         await uploadTaskAttachment(taskId, projectId, formData)
         toast.success("附件已上傳")
       } catch (err) {
@@ -74,6 +80,11 @@ export function TaskAttachments({
       {attachments.map((attachment) => {
         const isImage = attachment.mimeType.startsWith("image/")
         const fileUrl = `/api/attachments/${attachment.id}`
+        const previewUrl = isImage
+          ? fileUrl
+          : attachment.thumbnailStorageKey
+            ? `${fileUrl}?thumbnail=1`
+            : null
         const canDelete = manageable || attachment.uploader.id === currentUserId
 
         return (
@@ -85,10 +96,10 @@ export function TaskAttachments({
               title={attachment.filename}
               className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md border bg-muted"
             >
-              {isImage ? (
+              {previewUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={fileUrl}
+                  src={previewUrl}
                   alt={attachment.filename}
                   className="h-full w-full object-cover"
                 />
@@ -123,7 +134,7 @@ export function TaskAttachments({
             type="file"
             onChange={handleFileChange}
             disabled={isPending}
-            accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip"
+            accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
             className="hidden"
           />
         </label>

@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/session"
 import { getEffectiveProjectRole, canManageProject, canEditTask } from "@/lib/permissions"
 import { logActivity } from "@/lib/activity-log"
 import { saveAttachmentFile, deleteAttachmentFile } from "@/lib/attachment-storage"
+import { extractPptxThumbnail } from "@/lib/attachment-thumbnail"
 import { Prisma } from "@/generated/prisma/client"
 import type {
   ProjectStatus,
@@ -31,6 +32,8 @@ const ALLOWED_ATTACHMENT_TYPES = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.ms-excel",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "text/plain",
   "text/csv",
   "application/zip",
@@ -656,6 +659,28 @@ export async function deleteTask(taskId: string, projectId: string) {
 
 // ---------- Attachments ----------
 
+// A thumbnail either comes pre-rendered from the client (PDFs, rendered via
+// pdf.js since there's no serverless-safe way to rasterize a PDF here) or
+// gets extracted server-side from a .pptx's embedded preview image. Neither
+// is guaranteed, so callers fall back to a generic file-type icon.
+async function resolveThumbnailStorageKey(
+  uploadKeyBase: string,
+  formData: FormData,
+  file: File,
+  buffer: Buffer
+): Promise<string | null> {
+  const clientThumbnail = formData.get("thumbnail")
+  if (clientThumbnail instanceof File && clientThumbnail.size > 0) {
+    const thumbBuffer = Buffer.from(await clientThumbnail.arrayBuffer())
+    return saveAttachmentFile(`${uploadKeyBase}-thumb.png`, thumbBuffer)
+  }
+
+  const extracted = await extractPptxThumbnail(buffer, file.type)
+  if (!extracted) return null
+  const ext = extracted.mimeType === "image/png" ? "png" : "jpg"
+  return saveAttachmentFile(`${uploadKeyBase}-thumb.${ext}`, extracted.buffer)
+}
+
 export async function uploadAttachment(projectId: string, formData: FormData) {
   const user = await requireUser()
   const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
@@ -673,9 +698,15 @@ export async function uploadAttachment(projectId: string, formData: FormData) {
   }
 
   const safeName = file.name.replace(/[^\w.\-一-鿿]+/g, "_")
-  const uploadKey = `${projectId}/${randomUUID()}-${safeName}`
+  const uploadKeyBase = `${projectId}/${randomUUID()}-${safeName}`
   const buffer = Buffer.from(await file.arrayBuffer())
-  const storageKey = await saveAttachmentFile(uploadKey, buffer)
+  const storageKey = await saveAttachmentFile(uploadKeyBase, buffer)
+  const thumbnailStorageKey = await resolveThumbnailStorageKey(
+    uploadKeyBase,
+    formData,
+    file,
+    buffer
+  )
 
   const attachment = await prisma.attachment.create({
     data: {
@@ -683,6 +714,7 @@ export async function uploadAttachment(projectId: string, formData: FormData) {
       uploaderId: user.id,
       filename: file.name,
       storageKey,
+      thumbnailStorageKey,
       mimeType: file.type,
       size: file.size,
     },
@@ -723,9 +755,15 @@ export async function uploadTaskAttachment(
   }
 
   const safeName = file.name.replace(/[^\w.\-一-鿿]+/g, "_")
-  const uploadKey = `${projectId}/tasks/${taskId}/${randomUUID()}-${safeName}`
+  const uploadKeyBase = `${projectId}/tasks/${taskId}/${randomUUID()}-${safeName}`
   const buffer = Buffer.from(await file.arrayBuffer())
-  const storageKey = await saveAttachmentFile(uploadKey, buffer)
+  const storageKey = await saveAttachmentFile(uploadKeyBase, buffer)
+  const thumbnailStorageKey = await resolveThumbnailStorageKey(
+    uploadKeyBase,
+    formData,
+    file,
+    buffer
+  )
 
   const attachment = await prisma.attachment.create({
     data: {
@@ -734,6 +772,7 @@ export async function uploadTaskAttachment(
       uploaderId: user.id,
       filename: file.name,
       storageKey,
+      thumbnailStorageKey,
       mimeType: file.type,
       size: file.size,
     },
@@ -766,6 +805,9 @@ export async function deleteTaskAttachment(attachmentId: string, projectId: stri
 
   await prisma.attachment.delete({ where: { id: attachmentId } })
   await deleteAttachmentFile(attachment.storageKey)
+  if (attachment.thumbnailStorageKey) {
+    await deleteAttachmentFile(attachment.thumbnailStorageKey)
+  }
 
   if (attachment.taskId) {
     await logActivity({
@@ -795,6 +837,9 @@ export async function deleteAttachment(attachmentId: string, projectId: string) 
 
   await prisma.attachment.delete({ where: { id: attachmentId } })
   await deleteAttachmentFile(attachment.storageKey)
+  if (attachment.thumbnailStorageKey) {
+    await deleteAttachmentFile(attachment.thumbnailStorageKey)
+  }
 
   await logActivity({
     entityType: "PROJECT",

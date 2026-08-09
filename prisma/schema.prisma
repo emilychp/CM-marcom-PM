@@ -234,11 +234,12 @@ model Attachment {
   task       Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
   uploaderId String
   uploader   User     @relation("AttachmentUploader", fields: [uploaderId], references: [id])
-  filename   String
-  storageKey String
-  mimeType   String
-  size       Int
-  createdAt  DateTime @default(now())
+  filename            String
+  storageKey          String
+  thumbnailStorageKey String?
+  mimeType            String
+  size                Int
+  createdAt           DateTime @default(now())
 
   @@index([projectId])
   @@index([taskId])

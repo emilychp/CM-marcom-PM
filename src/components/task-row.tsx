@@ -36,6 +36,7 @@ type Task = {
     id: string
     filename: string
     mimeType: string
+    thumbnailStorageKey: string | null
     uploader: { id: string; name: string }
   }[]
 }

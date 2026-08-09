@@ -5,7 +5,7 @@ import { getEffectiveProjectRole } from "@/lib/permissions"
 import { readAttachmentFile } from "@/lib/attachment-storage"
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
@@ -28,7 +28,25 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
+  const wantsThumbnail = new URL(req.url).searchParams.has("thumbnail")
+  if (wantsThumbnail && !attachment.thumbnailStorageKey) {
+    return NextResponse.json({ error: "No thumbnail" }, { status: 404 })
+  }
+
   try {
+    if (wantsThumbnail) {
+      const buffer = await readAttachmentFile(attachment.thumbnailStorageKey!)
+      const mimeType = attachment.thumbnailStorageKey!.endsWith(".png")
+        ? "image/png"
+        : "image/jpeg"
+      return new NextResponse(new Uint8Array(buffer), {
+        headers: {
+          "Content-Type": mimeType,
+          "Cache-Control": "private, max-age=3600",
+        },
+      })
+    }
+
     const buffer = await readAttachmentFile(attachment.storageKey)
     const isPreviewable = attachment.mimeType.startsWith("image/") || attachment.mimeType === "application/pdf"
     return new NextResponse(new Uint8Array(buffer), {
