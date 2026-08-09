@@ -91,7 +91,7 @@ export function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2.5">
+    <div className="flex items-center justify-between gap-3 rounded-md border bg-card px-3 py-2.5">
       <div className="flex min-w-0 items-center gap-3">
         <Avatar className="h-8 w-8 shrink-0">
           <AvatarFallback>{user.name.slice(0, 1)}</AvatarFallback>
