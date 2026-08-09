@@ -1,6 +1,6 @@
 import { auth } from "@/auth"
 import { NavBar } from "@/components/nav-bar"
-import { ProjectCard } from "@/components/project-card"
+import { ProjectBoard } from "@/components/project-board"
 import { NewProjectDialog } from "@/components/new-project-dialog"
 import { StatusFilter } from "./status-filter"
 import { ViewModeSelect } from "./view-mode-select"
@@ -66,6 +66,7 @@ export default async function DashboardPage({
     : allProjects
 
   const groups = groupProjects(projects, viewMode)
+  const canReorder = viewMode === "ALL" && !statusFilter
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/20">
@@ -76,6 +77,7 @@ export default async function DashboardPage({
             <h1 className="text-2xl font-semibold">專案總覽</h1>
             <p className="text-sm text-muted-foreground">
               共 {allProjects.length} 個專案
+              {canReorder && "・拖曳卡片右上角圖示可調整順序"}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -99,11 +101,7 @@ export default async function DashboardPage({
                     <span className="font-normal">（{group.projects.length}）</span>
                   </h2>
                 )}
-                <div className="columns-1 gap-4 sm:columns-2 lg:columns-3">
-                  {group.projects.map((project) => (
-                    <ProjectCard key={project.id} project={project} />
-                  ))}
-                </div>
+                <ProjectBoard projects={group.projects} sortable={canReorder} />
               </section>
             ))}
           </div>

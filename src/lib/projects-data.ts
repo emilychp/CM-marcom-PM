@@ -114,8 +114,17 @@ async function fetchAndMapProjects(where: Prisma.ProjectWhereInput) {
       health: pickWorstHealth(allTasks),
       highlightNote: pickHighlightNote(project.phases),
       previewImage: previewByProject.get(project.id) ?? null,
+      dashboardOrder: project.dashboardOrder,
     }
   }).sort((a, b) => {
+    // Manually dragged projects always sort first, in the order the user set;
+    // anything untouched falls back to priority (then most-recently-updated).
+    if (a.dashboardOrder != null && b.dashboardOrder != null) {
+      return a.dashboardOrder - b.dashboardOrder
+    }
+    if (a.dashboardOrder != null) return -1
+    if (b.dashboardOrder != null) return 1
+
     const priorityDiff =
       PROJECT_PRIORITY_ORDER.indexOf(a.priority as (typeof PROJECT_PRIORITY_ORDER)[number]) -
       PROJECT_PRIORITY_ORDER.indexOf(b.priority as (typeof PROJECT_PRIORITY_ORDER)[number])

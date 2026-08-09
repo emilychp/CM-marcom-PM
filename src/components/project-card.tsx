@@ -17,7 +17,7 @@ import {
 import { TaskStatusBreakdown } from "@/components/task-status-breakdown"
 import { HealthDot } from "@/components/health-dot"
 
-type ProjectCardData = {
+export type ProjectCardData = {
   id: string
   name: string
   description: string | null
@@ -36,7 +36,7 @@ type ProjectCardData = {
 
 export function ProjectCard({ project }: { project: ProjectCardData }) {
   return (
-    <Link href={`/projects/${project.id}`} className="mb-4 block break-inside-avoid">
+    <Link href={`/projects/${project.id}`} className="block">
       <Card className="overflow-hidden transition-shadow hover:shadow-md">
         {project.previewImage && (
           // eslint-disable-next-line @next/next/no-img-element

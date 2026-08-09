@@ -71,6 +71,19 @@ export async function createProject(data: {
   return project
 }
 
+export async function reorderProjects(orderedIds: string[]) {
+  await requireUser()
+
+  await prisma.$transaction(
+    orderedIds.map((id, index) =>
+      prisma.project.update({ where: { id }, data: { dashboardOrder: index } })
+    )
+  )
+
+  revalidatePath("/dashboard")
+  revalidatePath("/my-projects")
+}
+
 export async function updateProjectStatus(projectId: string, status: ProjectStatus) {
   const user = await requireUser()
   const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)

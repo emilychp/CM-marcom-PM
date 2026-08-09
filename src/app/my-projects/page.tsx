@@ -1,6 +1,6 @@
 import { auth } from "@/auth"
 import { NavBar } from "@/components/nav-bar"
-import { ProjectCard } from "@/components/project-card"
+import { ProjectBoard } from "@/components/project-board"
 import { getMyProjects } from "@/lib/projects-data"
 
 export default async function MyProjectsPage() {
@@ -16,7 +16,7 @@ export default async function MyProjectsPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-semibold">我的專案</h1>
           <p className="text-sm text-muted-foreground">
-            共 {projects.length} 個你負責的專案
+            共 {projects.length} 個你負責的專案・拖曳卡片右上角圖示可調整順序
           </p>
         </div>
 
@@ -25,11 +25,7 @@ export default async function MyProjectsPage() {
             <p>目前沒有你負責的專案</p>
           </div>
         ) : (
-          <div className="columns-1 gap-4 sm:columns-2 lg:columns-3">
-            {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
-            ))}
-          </div>
+          <ProjectBoard projects={projects} sortable />
         )}
       </main>
     </div>

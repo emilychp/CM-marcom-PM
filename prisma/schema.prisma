@@ -135,6 +135,7 @@ model Project {
   description String?
   status      ProjectStatus   @default(PLANNING)
   priority    ProjectPriority @default(MEDIUM)
+  dashboardOrder Int?
   ownerId     String
   owner       User            @relation("ProjectOwner", fields: [ownerId], references: [id])
   startDate   DateTime?
