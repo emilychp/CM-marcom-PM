@@ -186,6 +186,8 @@ model Task {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
+  attachments Attachment[]
+
   @@index([phaseId])
   @@index([assigneeId])
 }
@@ -228,6 +230,8 @@ model Attachment {
   id         String   @id @default(cuid())
   projectId  String
   project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId     String?
+  task       Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
   uploaderId String
   uploader   User     @relation("AttachmentUploader", fields: [uploaderId], references: [id])
   filename   String
@@ -237,6 +241,7 @@ model Attachment {
   createdAt  DateTime @default(now())
 
   @@index([projectId])
+  @@index([taskId])
 }
 
 model ActivityLog {

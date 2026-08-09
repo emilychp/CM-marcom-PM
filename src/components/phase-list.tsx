@@ -29,6 +29,12 @@ type Task = {
   progress: number
   assignee: { id: string; name: string } | null
   dueDate: Date | null
+  attachments: {
+    id: string
+    filename: string
+    mimeType: string
+    uploader: { id: string; name: string }
+  }[]
 }
 
 type Phase = {

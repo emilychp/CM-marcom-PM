@@ -46,7 +46,13 @@ export default async function ProjectDetailPage({
         include: {
           tasks: {
             orderBy: { order: "asc" },
-            include: { assignee: { select: { id: true, name: true } } },
+            include: {
+              assignee: { select: { id: true, name: true } },
+              attachments: {
+                orderBy: { createdAt: "desc" },
+                include: { uploader: { select: { id: true, name: true } } },
+              },
+            },
           },
         },
       },
@@ -56,6 +62,7 @@ export default async function ProjectDetailPage({
         include: { values: { where: { entityId: id } } },
       },
       attachments: {
+        where: { taskId: null },
         orderBy: { createdAt: "desc" },
         include: { uploader: { select: { id: true, name: true } } },
       },

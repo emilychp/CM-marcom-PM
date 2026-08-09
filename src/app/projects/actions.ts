@@ -701,6 +701,86 @@ export async function uploadAttachment(projectId: string, formData: FormData) {
   return attachment
 }
 
+export async function uploadTaskAttachment(
+  taskId: string,
+  projectId: string,
+  formData: FormData
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  const task = await prisma.task.findUniqueOrThrow({ where: { id: taskId } })
+  if (!canEditTask(role, task, user.id)) throw new Error("FORBIDDEN")
+
+  const file = formData.get("file")
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("NO_FILE")
+  }
+  if (file.size > MAX_ATTACHMENT_SIZE) {
+    throw new Error("FILE_TOO_LARGE")
+  }
+  if (!ALLOWED_ATTACHMENT_TYPES.has(file.type)) {
+    throw new Error("UNSUPPORTED_TYPE")
+  }
+
+  const safeName = file.name.replace(/[^\w.\-一-鿿]+/g, "_")
+  const uploadKey = `${projectId}/tasks/${taskId}/${randomUUID()}-${safeName}`
+  const buffer = Buffer.from(await file.arrayBuffer())
+  const storageKey = await saveAttachmentFile(uploadKey, buffer)
+
+  const attachment = await prisma.attachment.create({
+    data: {
+      projectId,
+      taskId,
+      uploaderId: user.id,
+      filename: file.name,
+      storageKey,
+      mimeType: file.type,
+      size: file.size,
+    },
+  })
+
+  await logActivity({
+    entityType: "TASK",
+    entityId: taskId,
+    userId: user.id,
+    action: "ATTACHMENT_ADDED",
+    field: "attachment",
+    newValue: file.name,
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  return attachment
+}
+
+export async function deleteTaskAttachment(attachmentId: string, projectId: string) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!role) throw new Error("FORBIDDEN")
+
+  const attachment = await prisma.attachment.findUniqueOrThrow({
+    where: { id: attachmentId },
+  })
+
+  const canDelete = canManageProject(role) || attachment.uploaderId === user.id
+  if (!canDelete) throw new Error("FORBIDDEN")
+
+  await prisma.attachment.delete({ where: { id: attachmentId } })
+  await deleteAttachmentFile(attachment.storageKey)
+
+  if (attachment.taskId) {
+    await logActivity({
+      entityType: "TASK",
+      entityId: attachment.taskId,
+      userId: user.id,
+      action: "ATTACHMENT_REMOVED",
+      field: "attachment",
+      oldValue: attachment.filename,
+    })
+  }
+
+  revalidatePath(`/projects/${projectId}`)
+}
+
 export async function deleteAttachment(attachmentId: string, projectId: string) {
   const user = await requireUser()
   const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
