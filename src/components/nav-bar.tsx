@@ -1,9 +1,9 @@
 import Link from "next/link"
 import { auth, signOut } from "@/auth"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { NavLinks } from "@/components/nav-links"
+import { UserMenu } from "@/components/user-menu"
 import { LayoutDashboard, LogOut } from "lucide-react"
 
 export async function NavBar() {
@@ -32,14 +32,7 @@ export async function NavBar() {
             >
               {user.globalRole === "ADMIN" ? "系統管理員" : "一般成員"}
             </Badge>
-            <div className="flex items-center gap-2">
-              <Avatar className="h-8 w-8 shrink-0">
-                <AvatarFallback>{user.name?.slice(0, 1) ?? "U"}</AvatarFallback>
-              </Avatar>
-              <span className="hidden whitespace-nowrap text-sm text-muted-foreground sm:inline">
-                {user.name}
-              </span>
-            </div>
+            <UserMenu name={user.name ?? "U"} email={user.email ?? ""} />
             <form
               action={async () => {
                 "use server"

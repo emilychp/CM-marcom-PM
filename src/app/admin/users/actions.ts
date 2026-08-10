@@ -24,7 +24,9 @@ export async function createUser(data: {
     throw new Error("PASSWORD_TOO_SHORT")
   }
 
-  const existing = await prisma.user.findUnique({ where: { email: data.email } })
+  const existing = await prisma.user.findFirst({
+    where: { email: { equals: data.email.trim(), mode: "insensitive" } },
+  })
   if (existing) {
     throw new Error("EMAIL_TAKEN")
   }
@@ -68,6 +70,23 @@ export async function updateUserStaffTier(userId: string, staffTier: StaffTier) 
 
   revalidatePath("/admin/users")
   revalidatePath("/workload")
+}
+
+export async function resetUserPassword(userId: string, newPassword: string) {
+  await requireAdmin()
+
+  if (newPassword.length < 8) {
+    throw new Error("PASSWORD_TOO_SHORT")
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 10)
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash },
+  })
+
+  revalidatePath("/admin/users")
 }
 
 export async function deleteUser(userId: string) {

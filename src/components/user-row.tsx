@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
+import { ResetPasswordDialog } from "@/components/reset-password-dialog"
 import { Trash2 } from "lucide-react"
 import type { GlobalRole, StaffTier } from "@/generated/prisma/enums"
 
@@ -133,6 +134,7 @@ export function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
             ))}
           </SelectContent>
         </Select>
+        <ResetPasswordDialog userId={user.id} userName={user.name} />
         {!isSelf && (
           <ConfirmDeleteDialog
             trigger={
