@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 import {
   uploadAttachment,
+  uploadAttachmentFromBlob,
   deleteAttachment,
   setProjectCoverAttachment,
 } from "@/app/projects/actions"
@@ -22,6 +23,8 @@ import { Button } from "@/components/ui/button"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { formatFileSize } from "@/lib/format"
 import { generatePdfThumbnail } from "@/lib/pdf-thumbnail"
+import { MAX_ATTACHMENT_SIZE, ALLOWED_ATTACHMENT_TYPES } from "@/lib/attachment-constants"
+import { buildAttachmentPathname, uploadFileToBlob } from "@/lib/attachment-upload-client"
 
 type Attachment = {
   id: string
@@ -76,13 +79,49 @@ export function AttachmentsPanel({
     if (!selectedFile) return
     startTransition(async () => {
       try {
-        const formData = new FormData()
-        formData.set("file", selectedFile)
-        if (selectedFile.type === "application/pdf") {
-          const thumbnail = await generatePdfThumbnail(selectedFile)
-          if (thumbnail) formData.set("thumbnail", thumbnail)
+        if (selectedFile.size > MAX_ATTACHMENT_SIZE) throw new Error("FILE_TOO_LARGE")
+        if (!ALLOWED_ATTACHMENT_TYPES.includes(selectedFile.type)) {
+          throw new Error("UNSUPPORTED_TYPE")
         }
-        await uploadAttachment(projectId, formData)
+
+        let thumbnail: File | null = null
+        if (selectedFile.type === "application/pdf") {
+          thumbnail = await generatePdfThumbnail(selectedFile)
+        }
+        const thumbnailFormData = thumbnail
+          ? (() => {
+              const fd = new FormData()
+              fd.set("thumbnail", thumbnail!)
+              return fd
+            })()
+          : undefined
+
+        try {
+          // Uploads go straight from the browser to Blob storage — sending
+          // large files through the Server Action itself hits Vercel's
+          // platform-level request body ceiling regardless of app config.
+          const pathname = buildAttachmentPathname(projectId, selectedFile.name)
+          const blob = await uploadFileToBlob(pathname, selectedFile, { projectId })
+          await uploadAttachmentFromBlob(
+            projectId,
+            {
+              filename: selectedFile.name,
+              mimeType: selectedFile.type,
+              size: selectedFile.size,
+              blobUrl: blob.url,
+              pathname,
+            },
+            thumbnailFormData
+          )
+        } catch {
+          // No Blob store connected (local dev) — fall back to the legacy
+          // path that sends the file through the Server Action.
+          const formData = new FormData()
+          formData.set("file", selectedFile)
+          if (thumbnail) formData.set("thumbnail", thumbnail)
+          await uploadAttachment(projectId, formData)
+        }
+
         toast.success("附件已上傳")
         setSelectedFile(null)
         if (fileInputRef.current) fileInputRef.current.value = ""

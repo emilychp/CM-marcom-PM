@@ -1,6 +1,6 @@
 import JSZip from "jszip"
 
-const PPTX_MIME_TYPE =
+export const PPTX_MIME_TYPE =
   "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 
 const THUMBNAIL_CANDIDATES = [

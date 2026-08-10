@@ -5,10 +5,13 @@ import { toast } from "sonner"
 import { Paperclip, X, File as FileIcon } from "lucide-react"
 import {
   uploadMeetingNoteAttachment,
+  uploadMeetingNoteAttachmentFromBlob,
   deleteMeetingNoteAttachment,
 } from "@/app/projects/actions"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { generatePdfThumbnail } from "@/lib/pdf-thumbnail"
+import { MAX_ATTACHMENT_SIZE, ALLOWED_ATTACHMENT_TYPES } from "@/lib/attachment-constants"
+import { buildAttachmentPathname, uploadFileToBlob } from "@/lib/attachment-upload-client"
 
 type Attachment = {
   id: string
@@ -47,13 +50,48 @@ export function MeetingNoteAttachments({
     if (!file) return
     startTransition(async () => {
       try {
-        const formData = new FormData()
-        formData.set("file", file)
-        if (file.type === "application/pdf") {
-          const thumbnail = await generatePdfThumbnail(file)
-          if (thumbnail) formData.set("thumbnail", thumbnail)
+        if (file.size > MAX_ATTACHMENT_SIZE) throw new Error("FILE_TOO_LARGE")
+        if (!ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
+          throw new Error("UNSUPPORTED_TYPE")
         }
-        await uploadMeetingNoteAttachment(meetingNoteId, projectId, formData)
+
+        let thumbnail: File | null = null
+        if (file.type === "application/pdf") {
+          thumbnail = await generatePdfThumbnail(file)
+        }
+        const thumbnailFormData = thumbnail
+          ? (() => {
+              const fd = new FormData()
+              fd.set("thumbnail", thumbnail!)
+              return fd
+            })()
+          : undefined
+
+        try {
+          const pathname = buildAttachmentPathname(
+            `${projectId}/meeting-notes/${meetingNoteId}`,
+            file.name
+          )
+          const blob = await uploadFileToBlob(pathname, file, { projectId })
+          await uploadMeetingNoteAttachmentFromBlob(
+            meetingNoteId,
+            projectId,
+            {
+              filename: file.name,
+              mimeType: file.type,
+              size: file.size,
+              blobUrl: blob.url,
+              pathname,
+            },
+            thumbnailFormData
+          )
+        } catch {
+          const formData = new FormData()
+          formData.set("file", file)
+          if (thumbnail) formData.set("thumbnail", thumbnail)
+          await uploadMeetingNoteAttachment(meetingNoteId, projectId, formData)
+        }
+
         toast.success("附件已上傳")
       } catch (err) {
         const message =

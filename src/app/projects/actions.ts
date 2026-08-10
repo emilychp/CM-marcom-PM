@@ -6,8 +6,9 @@ import { prisma } from "@/lib/prisma"
 import { requireUser } from "@/lib/session"
 import { getEffectiveProjectRole, canManageProject, canEditTask } from "@/lib/permissions"
 import { logActivity } from "@/lib/activity-log"
-import { saveAttachmentFile, deleteAttachmentFile } from "@/lib/attachment-storage"
-import { extractPptxThumbnail } from "@/lib/attachment-thumbnail"
+import { saveAttachmentFile, deleteAttachmentFile, readAttachmentFile } from "@/lib/attachment-storage"
+import { extractPptxThumbnail, PPTX_MIME_TYPE } from "@/lib/attachment-thumbnail"
+import { MAX_ATTACHMENT_SIZE, ALLOWED_ATTACHMENT_TYPES as ALLOWED_ATTACHMENT_TYPES_LIST } from "@/lib/attachment-constants"
 import { Prisma } from "@/generated/prisma/client"
 import type {
   ProjectStatus,
@@ -20,24 +21,7 @@ import type {
   RecurrenceFrequency,
 } from "@/generated/prisma/enums"
 
-const MAX_ATTACHMENT_SIZE = 25 * 1024 * 1024 // 25MB
-const ALLOWED_ATTACHMENT_TYPES = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/gif",
-  "image/webp",
-  "image/svg+xml",
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "text/plain",
-  "text/csv",
-  "application/zip",
-])
+const ALLOWED_ATTACHMENT_TYPES = new Set(ALLOWED_ATTACHMENT_TYPES_LIST)
 
 // ---------- Project ----------
 
@@ -743,6 +727,40 @@ async function resolveThumbnailStorageKey(
   return saveAttachmentFile(`${uploadKeyBase}-thumb.${ext}`, extracted.buffer)
 }
 
+// Large-file uploads (see uploadAttachmentFromBlob and friends below) never
+// send the main file's bytes through a Server Action — they go straight from
+// the browser to Blob storage — so there's no `buffer` to extract a .pptx
+// thumbnail from up front. Only fetch it back from Blob when actually needed.
+type BlobUploadMeta = {
+  filename: string
+  mimeType: string
+  size: number
+  blobUrl: string
+  pathname: string
+}
+
+async function resolveThumbnailKeyFromBlob(
+  meta: BlobUploadMeta,
+  thumbnailFile: File | null
+): Promise<string | null> {
+  if (thumbnailFile && thumbnailFile.size > 0) {
+    const thumbBuffer = Buffer.from(await thumbnailFile.arrayBuffer())
+    return saveAttachmentFile(`${meta.pathname}-thumb.png`, thumbBuffer)
+  }
+
+  if (meta.mimeType !== PPTX_MIME_TYPE) return null
+  const buffer = await readAttachmentFile(meta.blobUrl)
+  const extracted = await extractPptxThumbnail(buffer, meta.mimeType)
+  if (!extracted) return null
+  const ext = extracted.mimeType === "image/png" ? "png" : "jpg"
+  return saveAttachmentFile(`${meta.pathname}-thumb.${ext}`, extracted.buffer)
+}
+
+function readThumbnailFile(thumbnailFormData: FormData | undefined): File | null {
+  const thumbnail = thumbnailFormData?.get("thumbnail")
+  return thumbnail instanceof File && thumbnail.size > 0 ? thumbnail : null
+}
+
 export async function uploadAttachment(projectId: string, formData: FormData) {
   const user = await requireUser()
   const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
@@ -789,6 +807,48 @@ export async function uploadAttachment(projectId: string, formData: FormData) {
     action: "ATTACHMENT_ADDED",
     field: "attachment",
     newValue: file.name,
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  return attachment
+}
+
+export async function uploadAttachmentFromBlob(
+  projectId: string,
+  meta: BlobUploadMeta,
+  thumbnailFormData?: FormData
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!role) throw new Error("FORBIDDEN")
+
+  if (meta.size > MAX_ATTACHMENT_SIZE) throw new Error("FILE_TOO_LARGE")
+  if (!ALLOWED_ATTACHMENT_TYPES.has(meta.mimeType)) throw new Error("UNSUPPORTED_TYPE")
+
+  const thumbnailStorageKey = await resolveThumbnailKeyFromBlob(
+    meta,
+    readThumbnailFile(thumbnailFormData)
+  )
+
+  const attachment = await prisma.attachment.create({
+    data: {
+      projectId,
+      uploaderId: user.id,
+      filename: meta.filename,
+      storageKey: meta.blobUrl,
+      thumbnailStorageKey,
+      mimeType: meta.mimeType,
+      size: meta.size,
+    },
+  })
+
+  await logActivity({
+    entityType: "PROJECT",
+    entityId: projectId,
+    userId: user.id,
+    action: "ATTACHMENT_ADDED",
+    field: "attachment",
+    newValue: meta.filename,
   })
 
   revalidatePath(`/projects/${projectId}`)
@@ -847,6 +907,51 @@ export async function uploadTaskAttachment(
     action: "ATTACHMENT_ADDED",
     field: "attachment",
     newValue: file.name,
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  return attachment
+}
+
+export async function uploadTaskAttachmentFromBlob(
+  taskId: string,
+  projectId: string,
+  meta: BlobUploadMeta,
+  thumbnailFormData?: FormData
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  const task = await prisma.task.findUniqueOrThrow({ where: { id: taskId } })
+  if (!canEditTask(role, task, user.id)) throw new Error("FORBIDDEN")
+
+  if (meta.size > MAX_ATTACHMENT_SIZE) throw new Error("FILE_TOO_LARGE")
+  if (!ALLOWED_ATTACHMENT_TYPES.has(meta.mimeType)) throw new Error("UNSUPPORTED_TYPE")
+
+  const thumbnailStorageKey = await resolveThumbnailKeyFromBlob(
+    meta,
+    readThumbnailFile(thumbnailFormData)
+  )
+
+  const attachment = await prisma.attachment.create({
+    data: {
+      projectId,
+      taskId,
+      uploaderId: user.id,
+      filename: meta.filename,
+      storageKey: meta.blobUrl,
+      thumbnailStorageKey,
+      mimeType: meta.mimeType,
+      size: meta.size,
+    },
+  })
+
+  await logActivity({
+    entityType: "TASK",
+    entityId: taskId,
+    userId: user.id,
+    action: "ATTACHMENT_ADDED",
+    field: "attachment",
+    newValue: meta.filename,
   })
 
   revalidatePath(`/projects/${projectId}`)
@@ -1243,6 +1348,41 @@ export async function uploadMeetingNoteAttachment(
       thumbnailStorageKey,
       mimeType: file.type,
       size: file.size,
+    },
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  return attachment
+}
+
+export async function uploadMeetingNoteAttachmentFromBlob(
+  meetingNoteId: string,
+  projectId: string,
+  meta: BlobUploadMeta,
+  thumbnailFormData?: FormData
+) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!role) throw new Error("FORBIDDEN")
+
+  if (meta.size > MAX_ATTACHMENT_SIZE) throw new Error("FILE_TOO_LARGE")
+  if (!ALLOWED_ATTACHMENT_TYPES.has(meta.mimeType)) throw new Error("UNSUPPORTED_TYPE")
+
+  const thumbnailStorageKey = await resolveThumbnailKeyFromBlob(
+    meta,
+    readThumbnailFile(thumbnailFormData)
+  )
+
+  const attachment = await prisma.attachment.create({
+    data: {
+      projectId,
+      meetingNoteId,
+      uploaderId: user.id,
+      filename: meta.filename,
+      storageKey: meta.blobUrl,
+      thumbnailStorageKey,
+      mimeType: meta.mimeType,
+      size: meta.size,
     },
   })
 
