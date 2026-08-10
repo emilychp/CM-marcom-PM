@@ -20,7 +20,7 @@ import type {
   RecurrenceFrequency,
 } from "@/generated/prisma/enums"
 
-const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024 // 10MB
+const MAX_ATTACHMENT_SIZE = 25 * 1024 * 1024 // 25MB
 const ALLOWED_ATTACHMENT_TYPES = new Set([
   "image/png",
   "image/jpeg",

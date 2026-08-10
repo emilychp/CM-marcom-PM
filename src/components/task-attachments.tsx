@@ -21,7 +21,7 @@ type Attachment = {
 
 const UPLOAD_ERROR_MESSAGES: Record<string, string> = {
   NO_FILE: "請先選擇檔案",
-  FILE_TOO_LARGE: "檔案超過 10MB 上限",
+  FILE_TOO_LARGE: "檔案超過 25MB 上限",
   UNSUPPORTED_TYPE: "不支援的檔案格式",
 }
 
