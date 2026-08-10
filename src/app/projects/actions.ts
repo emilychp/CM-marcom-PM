@@ -501,6 +501,18 @@ export async function deletePhase(phaseId: string, projectId: string) {
 
 // ---------- Task ----------
 
+// Being assigned a task is, in practice, being given work inside the
+// project — so the assignee needs to be able to see it. Upserting with
+// `update: {}` adds them as a MEMBER if they weren't already in the
+// project, without downgrading an existing MANAGER.
+async function ensureProjectMember(projectId: string, userId: string) {
+  await prisma.projectMember.upsert({
+    where: { projectId_userId: { projectId, userId } },
+    update: {},
+    create: { projectId, userId, roleInProject: "MEMBER" },
+  })
+}
+
 export async function createTask(
   phaseId: string,
   projectId: string,
@@ -520,6 +532,10 @@ export async function createTask(
       order: count,
     },
   })
+
+  if (data.assigneeId) {
+    await ensureProjectMember(projectId, data.assigneeId)
+  }
 
   await logActivity({
     entityType: "TASK",
@@ -666,6 +682,10 @@ export async function updateTask(
       dueDate,
     },
   })
+
+  if (data.assigneeId) {
+    await ensureProjectMember(projectId, data.assigneeId)
+  }
 
   await logActivity({
     entityType: "TASK",
