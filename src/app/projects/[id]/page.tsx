@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { getEffectiveProjectRole, canManageProject } from "@/lib/permissions"
 import { getAllUsers } from "@/lib/users-data"
 import { computeProjectProgress } from "@/lib/projects-data"
+import { getCategories } from "@/lib/categories-data"
 import { NavBar } from "@/components/nav-bar"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -24,6 +25,7 @@ import { MembersPanel } from "@/components/members-panel"
 import { CustomFieldsPanel } from "@/components/custom-fields-panel"
 import { ActivityTimeline } from "@/components/activity-timeline"
 import { AttachmentsPanel } from "@/components/attachments-panel"
+import { ProjectCategoryEditor } from "@/components/project-category-editor"
 import { MeetingNotesPanel } from "@/components/meeting-notes-panel"
 import { CommentsPanel } from "@/components/comments-panel"
 import { DeleteProjectDialog } from "@/components/delete-project-dialog"
@@ -42,6 +44,7 @@ export default async function ProjectDetailPage({
     include: {
       owner: { select: { id: true, name: true } },
       members: { include: { user: { select: { id: true, name: true, email: true } } } },
+      categories: { include: { category: true } },
       phases: {
         orderBy: { order: "asc" },
         include: {
@@ -95,7 +98,12 @@ export default async function ProjectDetailPage({
 
   const manageable = canManageProject(role)
   const progress = computeProjectProgress(project.phases)
-  const allUsers = await getAllUsers()
+  const [allUsers, allCategories] = await Promise.all([getAllUsers(), getCategories()])
+  const projectCategories = project.categories.map((pc) => ({
+    id: pc.category.id,
+    name: pc.category.name,
+    color: pc.category.color,
+  }))
 
   const taskIds = project.phases.flatMap((phase) => phase.tasks.map((t) => t.id))
   const activity = await prisma.activityLog.findMany({
@@ -151,6 +159,14 @@ export default async function ProjectDetailPage({
                   projectId={project.id}
                   startDate={project.startDate}
                   dueDate={project.dueDate}
+                  manageable={manageable}
+                />
+              </div>
+              <div className="mt-2">
+                <ProjectCategoryEditor
+                  projectId={project.id}
+                  allCategories={allCategories}
+                  selectedCategories={projectCategories}
                   manageable={manageable}
                 />
               </div>

@@ -16,6 +16,7 @@ import {
 } from "@/lib/status-labels"
 import { TaskStatusBreakdown } from "@/components/task-status-breakdown"
 import { HealthDot } from "@/components/health-dot"
+import { optionColorBgClass } from "@/lib/option-colors"
 
 export type ProjectCardData = {
   id: string
@@ -32,12 +33,24 @@ export type ProjectCardData = {
   health: string | null
   highlightNote: string | null
   previewImage: { id: string; isDirectImage: boolean } | null
+  categories: { id: string; name: string; color: string }[]
 }
 
 export function ProjectCard({ project }: { project: ProjectCardData }) {
   return (
     <Link href={`/projects/${project.id}`} className="block">
       <Card className="overflow-hidden transition-shadow hover:shadow-md">
+        {project.categories.length > 0 && (
+          <div className="flex h-1.5 w-full">
+            {project.categories.map((category) => (
+              <span
+                key={category.id}
+                title={category.name}
+                className={`flex-1 ${optionColorBgClass[category.color] ?? optionColorBgClass.gray}`}
+              />
+            ))}
+          </div>
+        )}
         {project.previewImage && (
           // eslint-disable-next-line @next/next/no-img-element
           <img

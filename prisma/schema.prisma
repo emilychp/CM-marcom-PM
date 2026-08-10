@@ -108,6 +108,7 @@ enum ActivityAction {
   MEETING_NOTE_ADDED
   MEETING_NOTE_UPDATED
   MEETING_NOTE_REMOVED
+  CATEGORIES_CHANGED
 }
 
 model User {
@@ -153,8 +154,32 @@ model Project {
   attachments  Attachment[]      @relation("ProjectAttachments")
   comments     Comment[]
   meetingNotes MeetingNote[]
+  categories   ProjectCategory[]
 
   @@index([ownerId])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String   @default("gray")
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  projects ProjectCategory[]
+}
+
+model ProjectCategory {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([projectId, categoryId])
+  @@index([projectId])
+  @@index([categoryId])
 }
 
 model Comment {

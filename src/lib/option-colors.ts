@@ -18,6 +18,26 @@ export const optionColorDotClass: Record<string, string> = {
   purple: "bg-purple-500",
 }
 
+// Same hues as optionColorDotClass, but solid enough to use as a filled
+// background (e.g. an active tab or tag), so gray uses a stronger tone.
+export const optionColorBgClass: Record<string, string> = {
+  gray: "bg-muted-foreground/70",
+  blue: "bg-blue-500",
+  green: "bg-emerald-500",
+  yellow: "bg-amber-400",
+  red: "bg-red-500",
+  purple: "bg-purple-500",
+}
+
+export const optionColorTextOnFillClass: Record<string, string> = {
+  gray: "text-white",
+  blue: "text-white",
+  green: "text-white",
+  yellow: "text-amber-950",
+  red: "text-white",
+  purple: "text-white",
+}
+
 export type FieldOption = { label: string; color?: string }
 
 export function parseFieldOptions(options: unknown): FieldOption[] {

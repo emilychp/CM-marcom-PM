@@ -4,7 +4,9 @@ import { ProjectBoard } from "@/components/project-board"
 import { NewProjectDialog } from "@/components/new-project-dialog"
 import { StatusFilter } from "./status-filter"
 import { ViewModeSelect } from "./view-mode-select"
+import { CategoryTabs } from "./category-tabs"
 import { getProjectsForUser } from "@/lib/projects-data"
+import { getCategories } from "@/lib/categories-data"
 import {
   PROJECT_PRIORITY_ORDER,
   PROJECT_STATUS_ORDER,
@@ -58,15 +60,20 @@ export default async function DashboardPage({
   const params = await searchParams
   const statusFilter =
     typeof params.status === "string" ? params.status : undefined
+  const categoryFilter =
+    typeof params.category === "string" ? params.category : undefined
   const viewMode = typeof params.view === "string" ? params.view : "ALL"
 
-  const allProjects = await getProjectsForUser(session.user)
-  const projects = statusFilter
-    ? allProjects.filter((p) => p.status === statusFilter)
-    : allProjects
+  const [allProjects, categories] = await Promise.all([
+    getProjectsForUser(session.user),
+    getCategories(),
+  ])
+  const projects = allProjects
+    .filter((p) => !statusFilter || p.status === statusFilter)
+    .filter((p) => !categoryFilter || p.categories.some((c) => c.id === categoryFilter))
 
   const groups = groupProjects(projects, viewMode)
-  const canReorder = viewMode === "ALL" && !statusFilter
+  const canReorder = viewMode === "ALL" && !statusFilter && !categoryFilter
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
@@ -83,8 +90,12 @@ export default async function DashboardPage({
           <div className="flex items-center gap-3">
             <ViewModeSelect />
             <StatusFilter />
-            <NewProjectDialog />
+            <NewProjectDialog categories={categories} />
           </div>
+        </div>
+
+        <div className="mb-6">
+          <CategoryTabs categories={categories} />
         </div>
 
         {projects.length === 0 ? (

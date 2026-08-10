@@ -27,6 +27,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus } from "lucide-react"
+import { optionColorBgClass, optionColorTextOnFillClass } from "@/lib/option-colors"
 
 const schema = z.object({
   name: z.string().min(1, "請輸入專案名稱"),
@@ -34,20 +35,30 @@ const schema = z.object({
   dueDate: z.string().optional(),
 })
 
-export function NewProjectDialog() {
+type Category = { id: string; name: string; color: string }
+
+export function NewProjectDialog({ categories }: { categories: Category[] }) {
   const [open, setOpen] = useState(false)
+  const [categoryIds, setCategoryIds] = useState<string[]>([])
   const router = useRouter()
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: { name: "", description: "", dueDate: "" },
   })
 
+  function toggleCategory(id: string) {
+    setCategoryIds((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
+    )
+  }
+
   async function onSubmit(values: z.infer<typeof schema>) {
     try {
-      const project = await createProject(values)
+      const project = await createProject({ ...values, categoryIds })
       toast.success("專案已建立")
       setOpen(false)
       form.reset()
+      setCategoryIds([])
       router.push(`/projects/${project.id}`)
     } catch {
       toast.error("建立專案失敗，請稍後再試")
@@ -109,6 +120,33 @@ export function NewProjectDialog() {
                 </FormItem>
               )}
             />
+            {categories.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">分類</label>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((category) => {
+                    const selected = categoryIds.includes(category.id)
+                    return (
+                      <button
+                        key={category.id}
+                        type="button"
+                        onClick={() => toggleCategory(category.id)}
+                        className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                          selected
+                            ? `${optionColorBgClass[category.color] ?? optionColorBgClass.gray} ${
+                                optionColorTextOnFillClass[category.color] ??
+                                optionColorTextOnFillClass.gray
+                              }`
+                            : "border text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {category.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? "建立中..." : "建立專案"}

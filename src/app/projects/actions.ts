@@ -45,6 +45,7 @@ export async function createProject(data: {
   name: string
   description?: string
   dueDate?: string
+  categoryIds?: string[]
 }) {
   const user = await requireUser()
 
@@ -57,6 +58,9 @@ export async function createProject(data: {
       members: {
         create: [{ userId: user.id, roleInProject: "MANAGER" }],
       },
+      categories: data.categoryIds?.length
+        ? { create: data.categoryIds.map((categoryId) => ({ categoryId })) }
+        : undefined,
     },
   })
 
@@ -69,6 +73,31 @@ export async function createProject(data: {
 
   revalidatePath("/dashboard")
   return project
+}
+
+export async function setProjectCategories(projectId: string, categoryIds: string[]) {
+  const user = await requireUser()
+  const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
+  if (!role) throw new Error("FORBIDDEN")
+
+  await prisma.$transaction([
+    prisma.projectCategory.deleteMany({ where: { projectId } }),
+    prisma.projectCategory.createMany({
+      data: categoryIds.map((categoryId) => ({ projectId, categoryId })),
+      skipDuplicates: true,
+    }),
+  ])
+
+  await logActivity({
+    entityType: "PROJECT",
+    entityId: projectId,
+    userId: user.id,
+    action: "CATEGORIES_CHANGED",
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath("/dashboard")
+  revalidatePath("/my-projects")
 }
 
 export async function reorderProjects(orderedIds: string[]) {

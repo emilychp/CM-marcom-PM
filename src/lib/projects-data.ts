@@ -44,6 +44,7 @@ async function fetchAndMapProjects(where: Prisma.ProjectWhereInput) {
     include: {
       owner: { select: { id: true, name: true } },
       members: { select: { userId: true } },
+      categories: { include: { category: true } },
       phases: {
         include: {
           tasks: {
@@ -127,6 +128,11 @@ async function fetchAndMapProjects(where: Prisma.ProjectWhereInput) {
       highlightNote: pickHighlightNote(project.phases),
       previewImage: previewByProject.get(project.id) ?? null,
       dashboardOrder: project.dashboardOrder,
+      categories: project.categories.map((pc) => ({
+        id: pc.category.id,
+        name: pc.category.name,
+        color: pc.category.color,
+      })),
     }
   }).sort((a, b) => {
     // Manually dragged projects always sort first, in the order the user set;
