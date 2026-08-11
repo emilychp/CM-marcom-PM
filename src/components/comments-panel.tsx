@@ -21,11 +21,13 @@ export function CommentsPanel({
   comments,
   currentUserId,
   manageable,
+  isMember,
 }: {
   projectId: string
   comments: Comment[]
   currentUserId: string
   manageable: boolean
+  isMember: boolean
 }) {
   const [draft, setDraft] = useState("")
   const [isPending, startTransition] = useTransition()
@@ -63,25 +65,27 @@ export function CommentsPanel({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Textarea
-            placeholder="留言或註記想法、議題..."
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            disabled={isPending}
-            rows={3}
-          />
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              size="sm"
-              onClick={handlePost}
-              disabled={!draft.trim() || isPending}
-            >
-              發表留言
-            </Button>
+        {isMember && (
+          <div className="space-y-2">
+            <Textarea
+              placeholder="留言或註記想法、議題..."
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              disabled={isPending}
+              rows={3}
+            />
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                size="sm"
+                onClick={handlePost}
+                disabled={!draft.trim() || isPending}
+              >
+                發表留言
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
 
         {comments.length === 0 ? (
           <p className="text-sm text-muted-foreground">尚無留言</p>

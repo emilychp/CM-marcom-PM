@@ -66,6 +66,8 @@ export function TaskRow({
     role === "ADMIN" ||
     role === "MANAGER" ||
     (role === "MEMBER" && task.assignee?.id === currentUserId)
+  // Any project member can attach files to any task, not just their own.
+  const canUploadAttachment = role !== null
 
   const [progress, setProgress] = useState(task.progress)
   const [status, setStatus] = useState(task.status)
@@ -151,7 +153,7 @@ export function TaskRow({
           attachments={task.attachments}
           currentUserId={currentUserId}
           manageable={manageable}
-          canEdit={canEdit}
+          canEdit={canUploadAttachment}
         />
       </div>
 

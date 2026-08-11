@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { getEffectiveProjectRole } from "@/lib/permissions"
 import { readAttachmentFile } from "@/lib/attachment-storage"
 
 export async function GET(
@@ -19,14 +18,8 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 
-  const role = await getEffectiveProjectRole(
-    session.user.id,
-    session.user.globalRole,
-    attachment.projectId
-  )
-  if (!role) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
+  // Any account holder can view/download attachments — project pages are
+  // fully readable by everyone now, so downloads must match.
 
   const wantsThumbnail = new URL(req.url).searchParams.has("thumbnail")
   if (wantsThumbnail && !attachment.thumbnailStorageKey) {

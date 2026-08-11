@@ -89,14 +89,16 @@ export default async function ProjectDetailPage({
 
   if (!project) notFound()
 
+  // Any account holder can view a project's full content; membership only
+  // gates editing (see `manageable` / per-panel `canEdit` props below).
   const role = await getEffectiveProjectRole(
     session.user.id,
     session.user.globalRole,
     project.id
   )
-  if (!role) notFound()
 
   const manageable = canManageProject(role)
+  const isMember = role !== null
   const progress = computeProjectProgress(project.phases)
   const [allUsers, allCategories] = await Promise.all([getAllUsers(), getCategories()])
   const projectCategories = project.categories.map((pc) => ({
@@ -226,6 +228,7 @@ export default async function ProjectDetailPage({
           attachments={project.attachments}
           currentUserId={session.user.id}
           manageable={manageable}
+          isMember={isMember}
           coverAttachmentId={project.coverAttachmentId}
         />
 
@@ -234,6 +237,7 @@ export default async function ProjectDetailPage({
           notes={project.meetingNotes}
           currentUserId={session.user.id}
           manageable={manageable}
+          isMember={isMember}
         />
 
         <CommentsPanel
@@ -241,6 +245,7 @@ export default async function ProjectDetailPage({
           comments={project.comments}
           currentUserId={session.user.id}
           manageable={manageable}
+          isMember={isMember}
         />
 
         <ActivityTimeline activity={activity} />

@@ -862,8 +862,7 @@ export async function uploadTaskAttachment(
 ) {
   const user = await requireUser()
   const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
-  const task = await prisma.task.findUniqueOrThrow({ where: { id: taskId } })
-  if (!canEditTask(role, task, user.id)) throw new Error("FORBIDDEN")
+  if (!role) throw new Error("FORBIDDEN")
 
   const file = formData.get("file")
   if (!(file instanceof File) || file.size === 0) {
@@ -921,8 +920,7 @@ export async function uploadTaskAttachmentFromBlob(
 ) {
   const user = await requireUser()
   const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
-  const task = await prisma.task.findUniqueOrThrow({ where: { id: taskId } })
-  if (!canEditTask(role, task, user.id)) throw new Error("FORBIDDEN")
+  if (!role) throw new Error("FORBIDDEN")
 
   if (meta.size > MAX_ATTACHMENT_SIZE) throw new Error("FILE_TOO_LARGE")
   if (!ALLOWED_ATTACHMENT_TYPES.has(meta.mimeType)) throw new Error("UNSUPPORTED_TYPE")

@@ -124,7 +124,7 @@ export function NewUserDialog() {
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              系統管理員可以看到所有專案；一般成員只能看到自己被加入的專案
+              所有成員都能查看全部專案內容；系統管理員可以管理所有專案，一般成員只有被加入的專案才能編輯
             </p>
           </div>
           <DialogFooter>

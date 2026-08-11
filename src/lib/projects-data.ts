@@ -151,13 +151,13 @@ async function fetchAndMapProjects(where: Prisma.ProjectWhereInput) {
   })
 }
 
-export async function getProjectsForUser(user: {
+export async function getProjectsForUser(_user: {
   id: string
   globalRole: "ADMIN" | "MEMBER"
 }) {
-  return fetchAndMapProjects(
-    user.globalRole === "ADMIN" ? {} : { members: { some: { userId: user.id } } }
-  )
+  // Anyone with an account can see every project's dashboard overview;
+  // membership only gates editing, not visibility.
+  return fetchAndMapProjects({})
 }
 
 export async function getMyProjects(userId: string) {

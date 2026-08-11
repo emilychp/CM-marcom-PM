@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server"
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client"
 import { auth } from "@/auth"
-import { prisma } from "@/lib/prisma"
-import { getEffectiveProjectRole, canEditTask } from "@/lib/permissions"
+import { getEffectiveProjectRole } from "@/lib/permissions"
 import { MAX_ATTACHMENT_SIZE, ALLOWED_ATTACHMENT_TYPES } from "@/lib/attachment-constants"
 
 type ClientPayload = {
@@ -35,14 +34,10 @@ export async function POST(request: Request) {
           session.user.globalRole,
           payload.projectId
         )
+        // Any project member can upload here, whether the attachment is at
+        // the project level, a meeting note, or any task in the workflow —
+        // task attachments are no longer restricted to the task's assignee.
         if (!role) throw new Error("FORBIDDEN")
-
-        if (payload.taskId) {
-          const task = await prisma.task.findUniqueOrThrow({
-            where: { id: payload.taskId },
-          })
-          if (!canEditTask(role, task, session.user.id)) throw new Error("FORBIDDEN")
-        }
 
         return {
           allowedContentTypes: [...ALLOWED_ATTACHMENT_TYPES],

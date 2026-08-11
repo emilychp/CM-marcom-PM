@@ -167,11 +167,13 @@ export function MeetingNotesPanel({
   notes,
   currentUserId,
   manageable,
+  isMember,
 }: {
   projectId: string
   notes: MeetingNote[]
   currentUserId: string
   manageable: boolean
+  isMember: boolean
 }) {
   const [adding, setAdding] = useState(false)
   const [title, setTitle] = useState("")
@@ -200,14 +202,14 @@ export function MeetingNotesPanel({
           <NotebookText className="h-4 w-4" />
           會議記錄
         </CardTitle>
-        {!adding && (
+        {isMember && !adding && (
           <Button type="button" size="sm" variant="outline" onClick={() => setAdding(true)}>
             + 新增會議記錄
           </Button>
         )}
       </CardHeader>
       <CardContent className="space-y-4">
-        {adding && (
+        {isMember && adding && (
           <div className="space-y-2 rounded-md border border-dashed p-3">
             <Input
               placeholder="會議標題，例如：8/10 專案進度會議"

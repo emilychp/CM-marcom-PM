@@ -59,12 +59,14 @@ export function AttachmentsPanel({
   attachments,
   currentUserId,
   manageable,
+  isMember,
   coverAttachmentId,
 }: {
   projectId: string
   attachments: Attachment[]
   currentUserId: string
   manageable: boolean
+  isMember: boolean
   coverAttachmentId: string | null
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -161,25 +163,27 @@ export function AttachmentsPanel({
         <CardTitle>附件</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            onChange={handleFileChange}
-            disabled={isPending}
-            accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
-            className="text-sm text-muted-foreground file:mr-3 file:rounded-md file:border file:bg-background file:px-3 file:py-1.5 file:text-sm file:font-medium"
-          />
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleUpload}
-            disabled={!selectedFile || isPending}
-          >
-            <Upload className="mr-1 h-4 w-4" />
-            {isPending ? "上傳中..." : "上傳"}
-          </Button>
-        </div>
+        {isMember && (
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFileChange}
+              disabled={isPending}
+              accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
+              className="text-sm text-muted-foreground file:mr-3 file:rounded-md file:border file:bg-background file:px-3 file:py-1.5 file:text-sm file:font-medium"
+            />
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleUpload}
+              disabled={!selectedFile || isPending}
+            >
+              <Upload className="mr-1 h-4 w-4" />
+              {isPending ? "上傳中..." : "上傳"}
+            </Button>
+          </div>
+        )}
 
         {attachments.length === 0 ? (
           <p className="text-sm text-muted-foreground">尚無附件</p>
