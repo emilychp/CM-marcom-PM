@@ -2,7 +2,7 @@
 
 import { useRef, useTransition } from "react"
 import { toast } from "sonner"
-import { Paperclip, X, File as FileIcon, Star } from "lucide-react"
+import { Paperclip, X, File as FileIcon, Star, History, RotateCw } from "lucide-react"
 import {
   uploadTaskAttachment,
   uploadTaskAttachmentFromBlob,
@@ -10,6 +10,13 @@ import {
   setProjectCoverAttachment,
 } from "@/app/projects/actions"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 import { generatePdfThumbnail } from "@/lib/pdf-thumbnail"
 import { MAX_ATTACHMENT_SIZE, ALLOWED_ATTACHMENT_TYPES } from "@/lib/attachment-constants"
 import { buildAttachmentPathname, uploadFileToBlob } from "@/lib/attachment-upload-client"
@@ -20,12 +27,34 @@ type Attachment = {
   mimeType: string
   thumbnailStorageKey: string | null
   uploader: { id: string; name: string }
+  createdAt: Date
+  versionGroupId: string | null
 }
 
 const UPLOAD_ERROR_MESSAGES: Record<string, string> = {
   NO_FILE: "請先選擇檔案",
   FILE_TOO_LARGE: "檔案超過 25MB 上限",
   UNSUPPORTED_TYPE: "不支援的檔案格式",
+}
+
+// Groups uploads that share a document lineage (same versionGroupId, or an
+// attachment that other versions point back to) so the newest upload can be
+// shown as the current version with older ones tucked into a history menu.
+// `attachments` arrives sorted newest-first, so each group's members stay in
+// that order too, and groups themselves come out ordered by their latest
+// version's recency.
+function groupByVersion(attachments: Attachment[]): Attachment[][] {
+  const groups = new Map<string, Attachment[]>()
+  for (const attachment of attachments) {
+    const key = attachment.versionGroupId ?? attachment.id
+    const group = groups.get(key)
+    if (group) {
+      group.push(attachment)
+    } else {
+      groups.set(key, [attachment])
+    }
+  }
+  return Array.from(groups.values())
 }
 
 export function TaskAttachments({
@@ -48,8 +77,9 @@ export function TaskAttachments({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isPending, startTransition] = useTransition()
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>, versionOf?: string) {
     const file = e.target.files?.[0]
+    const inputEl = e.target
     if (!file) return
     startTransition(async () => {
       try {
@@ -83,22 +113,24 @@ export function TaskAttachments({
               blobUrl: blob.url,
               pathname,
             },
-            thumbnailFormData
+            thumbnailFormData,
+            versionOf
           )
         } catch {
           const formData = new FormData()
           formData.set("file", file)
           if (thumbnail) formData.set("thumbnail", thumbnail)
+          if (versionOf) formData.set("versionOf", versionOf)
           await uploadTaskAttachment(taskId, projectId, formData)
         }
 
-        toast.success("附件已上傳")
+        toast.success(versionOf ? "新版本已上傳" : "附件已上傳")
       } catch (err) {
         const message =
           err instanceof Error ? UPLOAD_ERROR_MESSAGES[err.message] : undefined
         toast.error(message ?? "上傳失敗")
       } finally {
-        if (fileInputRef.current) fileInputRef.current.value = ""
+        inputEl.value = ""
       }
     })
   }
@@ -127,9 +159,13 @@ export function TaskAttachments({
 
   if (attachments.length === 0 && !canEdit) return null
 
+  const groups = groupByVersion(attachments)
+
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {attachments.map((attachment) => {
+      {groups.map((versions) => {
+        const attachment = versions[0]
+        const history = versions.slice(1)
         const isImage = attachment.mimeType.startsWith("image/")
         const fileUrl = `/api/attachments/${attachment.id}`
         const previewUrl = isImage
@@ -194,6 +230,67 @@ export function TaskAttachments({
                 onConfirm={() => handleDelete(attachment.id)}
               />
             )}
+            {history.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <button
+                      type="button"
+                      title={`還有 ${history.length} 個較早版本`}
+                      className="absolute -bottom-1.5 -left-1.5 rounded-full border bg-background px-1 py-0.5 text-[9px] font-medium leading-none text-muted-foreground shadow hover:text-foreground"
+                    >
+                      <History className="h-2.5 w-2.5" />
+                    </button>
+                  }
+                />
+                <DropdownMenuContent align="start">
+                  <div className="px-1.5 py-1 text-xs font-medium text-muted-foreground">
+                    版本歷程（新到舊）
+                  </div>
+                  <DropdownMenuItem
+                    onClick={() => window.open(fileUrl, "_blank", "noopener,noreferrer")}
+                  >
+                    <span className="truncate">
+                      目前版本 ・ {new Date(attachment.createdAt).toLocaleString("zh-TW")} ・{" "}
+                      {attachment.uploader.name}
+                    </span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {history.map((version) => (
+                    <DropdownMenuItem
+                      key={version.id}
+                      onClick={() =>
+                        window.open(
+                          `/api/attachments/${version.id}`,
+                          "_blank",
+                          "noopener,noreferrer"
+                        )
+                      }
+                    >
+                      <span className="truncate text-muted-foreground">
+                        {new Date(version.createdAt).toLocaleString("zh-TW")} ・{" "}
+                        {version.uploader.name}
+                      </span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            {canEdit && (
+              <label
+                title="上傳新版本"
+                className="absolute -bottom-1.5 -right-1.5 flex cursor-pointer items-center justify-center rounded-full bg-background p-0.5 text-muted-foreground opacity-0 shadow transition-opacity group-hover:opacity-100 hover:text-primary"
+              >
+                <RotateCw className="h-3 w-3" />
+                <input
+                  type="file"
+                  onChange={(e) => handleFileChange(e, attachment.id)}
+                  disabled={isPending}
+                  accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
+                  className="hidden"
+                />
+              </label>
+            )}
           </div>
         )
       })}
@@ -203,7 +300,7 @@ export function TaskAttachments({
           <input
             ref={fileInputRef}
             type="file"
-            onChange={handleFileChange}
+            onChange={(e) => handleFileChange(e)}
             disabled={isPending}
             accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
             className="hidden"

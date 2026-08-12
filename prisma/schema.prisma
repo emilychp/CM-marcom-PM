@@ -315,10 +315,17 @@ model Attachment {
   mimeType            String
   size                Int
   createdAt           DateTime @default(now())
+  // Groups uploads that are versions of the same document. Set to the
+  // original attachment's id (or its own versionGroupId, if it's already
+  // part of a chain) when a new version is uploaded — the original itself
+  // stays null. Plain string, no FK: grouping must survive the original
+  // being deleted.
+  versionGroupId      String?
 
   @@index([projectId])
   @@index([taskId])
   @@index([meetingNoteId])
+  @@index([versionGroupId])
 }
 
 model ActivityLog {

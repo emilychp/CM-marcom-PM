@@ -761,6 +761,18 @@ function readThumbnailFile(thumbnailFormData: FormData | undefined): File | null
   return thumbnail instanceof File && thumbnail.size > 0 ? thumbnail : null
 }
 
+// Resolves the shared group id for a chain of task-attachment versions.
+// `versionOf` is always the id of whichever version was latest when the
+// upload started; the group id is that attachment's own versionGroupId if
+// it's already partway through a chain, otherwise its own id (making it the
+// chain's origin). Scoped to the same task so a version link can't be
+// pointed at an attachment from a different task.
+async function resolveVersionGroupId(versionOf: string, taskId: string): Promise<string> {
+  const existing = await prisma.attachment.findUniqueOrThrow({ where: { id: versionOf } })
+  if (existing.taskId !== taskId) throw new Error("FORBIDDEN")
+  return existing.versionGroupId ?? existing.id
+}
+
 export async function uploadAttachment(projectId: string, formData: FormData) {
   const user = await requireUser()
   const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
@@ -875,6 +887,12 @@ export async function uploadTaskAttachment(
     throw new Error("UNSUPPORTED_TYPE")
   }
 
+  const versionOf = formData.get("versionOf")
+  const versionGroupId =
+    typeof versionOf === "string" && versionOf
+      ? await resolveVersionGroupId(versionOf, taskId)
+      : null
+
   const safeName = file.name.replace(/[^\w.\-一-鿿]+/g, "_")
   const uploadKeyBase = `${projectId}/tasks/${taskId}/${randomUUID()}-${safeName}`
   const buffer = Buffer.from(await file.arrayBuffer())
@@ -896,6 +914,7 @@ export async function uploadTaskAttachment(
       thumbnailStorageKey,
       mimeType: file.type,
       size: file.size,
+      versionGroupId,
     },
   })
 
@@ -916,7 +935,8 @@ export async function uploadTaskAttachmentFromBlob(
   taskId: string,
   projectId: string,
   meta: BlobUploadMeta,
-  thumbnailFormData?: FormData
+  thumbnailFormData?: FormData,
+  versionOf?: string
 ) {
   const user = await requireUser()
   const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
@@ -924,6 +944,8 @@ export async function uploadTaskAttachmentFromBlob(
 
   if (meta.size > MAX_ATTACHMENT_SIZE) throw new Error("FILE_TOO_LARGE")
   if (!ALLOWED_ATTACHMENT_TYPES.has(meta.mimeType)) throw new Error("UNSUPPORTED_TYPE")
+
+  const versionGroupId = versionOf ? await resolveVersionGroupId(versionOf, taskId) : null
 
   const thumbnailStorageKey = await resolveThumbnailKeyFromBlob(
     meta,
@@ -940,6 +962,7 @@ export async function uploadTaskAttachmentFromBlob(
       thumbnailStorageKey,
       mimeType: meta.mimeType,
       size: meta.size,
+      versionGroupId,
     },
   })
 
