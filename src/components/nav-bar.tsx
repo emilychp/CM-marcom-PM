@@ -1,10 +1,9 @@
-import Link from "next/link"
 import { auth, signOut } from "@/auth"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { NavLinks } from "@/components/nav-links"
+import { MegaMenu } from "@/components/mega-menu"
 import { UserMenu } from "@/components/user-menu"
-import { LayoutDashboard, LogOut } from "lucide-react"
+import { LogOut } from "lucide-react"
 
 export async function NavBar() {
   const session = await auth()
@@ -14,15 +13,11 @@ export async function NavBar() {
     <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 overflow-x-auto px-4 py-3 sm:gap-4">
         <div className="flex shrink-0 items-center gap-3 sm:gap-6">
-          <Link
-            href="/dashboard"
-            title="專案儀表板"
-            className="flex shrink-0 items-center gap-2 whitespace-nowrap text-lg font-semibold tracking-tight"
-          >
-            <LayoutDashboard className="h-5 w-5 shrink-0" />
-            <span className="hidden sm:inline">專案儀表板</span>
-          </Link>
-          {user && <NavLinks isAdmin={user.globalRole === "ADMIN"} />}
+          {user ? (
+            <MegaMenu isAdmin={user.globalRole === "ADMIN"} />
+          ) : (
+            <span className="text-lg font-semibold tracking-tight">專案儀表板</span>
+          )}
         </div>
         {user && (
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
