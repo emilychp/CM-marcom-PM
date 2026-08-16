@@ -128,6 +128,7 @@ model User {
   attachments   Attachment[]    @relation("AttachmentUploader")
   comments      Comment[]       @relation("CommentAuthor")
   meetingNotes  MeetingNote[]   @relation("MeetingNoteAuthor")
+  workloadAllocations WorkloadAllocation[]
 }
 
 model Project {
@@ -159,14 +160,42 @@ model Project {
   @@index([ownerId])
 }
 
-model Category {
+model Module {
   id        String   @id @default(cuid())
   name      String   @unique
   color     String   @default("gray")
   order     Int      @default(0)
   createdAt DateTime @default(now())
 
+  categories  Category[]
+  allocations WorkloadAllocation[]
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String   @default("gray")
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  moduleId  String?
+  module    Module?  @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+
   projects ProjectCategory[]
+
+  @@index([moduleId])
+}
+
+model WorkloadAllocation {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moduleId   String
+  module     Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  percentage Int
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, moduleId])
+  @@index([moduleId])
 }
 
 model ProjectCategory {

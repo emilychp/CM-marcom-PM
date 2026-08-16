@@ -27,6 +27,9 @@ export async function getWorkloadSummary() {
           },
         },
       },
+      workloadAllocations: {
+        select: { moduleId: true, percentage: true },
+      },
     },
   })
 
@@ -36,6 +39,10 @@ export async function getWorkloadSummary() {
       for (const task of user.assignedTasks) {
         statusCounts[task.status as keyof typeof statusCounts] += 1
       }
+      const allocations: Record<string, number> = {}
+      for (const a of user.workloadAllocations) {
+        allocations[a.moduleId] = a.percentage
+      }
 
       return {
         id: user.id,
@@ -44,6 +51,7 @@ export async function getWorkloadSummary() {
         ownedProjectCount: user.ownedProjects.length,
         taskCount: user.assignedTasks.length,
         statusCounts,
+        allocations,
         tasks: user.assignedTasks
           .map((t) => ({
             id: t.id,

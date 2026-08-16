@@ -4,9 +4,11 @@ import { ProjectBoard } from "@/components/project-board"
 import { NewProjectDialog } from "@/components/new-project-dialog"
 import { StatusFilter } from "./status-filter"
 import { ViewModeSelect } from "./view-mode-select"
-import { CategoryTabs } from "./category-tabs"
+import { ModuleCategoryTabs } from "./module-category-tabs"
+import { ModuleStatusMatrix } from "./module-status-matrix"
 import { getProjectsForUser } from "@/lib/projects-data"
 import { getCategories } from "@/lib/categories-data"
+import { getModules } from "@/lib/modules-data"
 import {
   PROJECT_PRIORITY_ORDER,
   PROJECT_STATUS_ORDER,
@@ -62,18 +64,25 @@ export default async function DashboardPage({
     typeof params.status === "string" ? params.status : undefined
   const categoryFilter =
     typeof params.category === "string" ? params.category : undefined
+  const moduleFilter =
+    typeof params.module === "string" ? params.module : undefined
   const viewMode = typeof params.view === "string" ? params.view : "ALL"
 
-  const [allProjects, categories] = await Promise.all([
+  const [allProjects, categories, modules] = await Promise.all([
     getProjectsForUser(session.user),
     getCategories(),
+    getModules(),
   ])
   const projects = allProjects
     .filter((p) => !statusFilter || p.status === statusFilter)
     .filter((p) => !categoryFilter || p.categories.some((c) => c.id === categoryFilter))
+    .filter(
+      (p) => !moduleFilter || p.categories.some((c) => c.moduleId === moduleFilter)
+    )
 
   const groups = groupProjects(projects, viewMode)
-  const canReorder = viewMode === "ALL" && !statusFilter && !categoryFilter
+  const canReorder =
+    viewMode === "ALL" && !statusFilter && !categoryFilter && !moduleFilter
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
@@ -95,7 +104,16 @@ export default async function DashboardPage({
         </div>
 
         <div className="mb-6">
-          <CategoryTabs categories={categories} />
+          <ModuleStatusMatrix
+            modules={modules}
+            projects={allProjects}
+            currentModule={moduleFilter}
+            currentStatus={statusFilter}
+          />
+        </div>
+
+        <div className="mb-6">
+          <ModuleCategoryTabs modules={modules} />
         </div>
 
         {projects.length === 0 ? (

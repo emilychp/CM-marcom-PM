@@ -132,6 +132,7 @@ async function fetchAndMapProjects(where: Prisma.ProjectWhereInput) {
         id: pc.category.id,
         name: pc.category.name,
         color: pc.category.color,
+        moduleId: pc.category.moduleId,
       })),
     }
   }).sort((a, b) => {
