@@ -8,6 +8,7 @@ const actionLabels: Record<string, string> = {
   PROGRESS_UPDATED: "更新進度",
   MEMBER_ADDED: "加入成員",
   MEMBER_REMOVED: "移除成員",
+  MEMBER_ROLE_CHANGED: "變更成員角色",
   FIELD_VALUE_CHANGED: "更新自訂欄位",
   ATTACHMENT_ADDED: "上傳附件",
   ATTACHMENT_REMOVED: "刪除附件",

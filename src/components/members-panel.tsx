@@ -18,6 +18,26 @@ import { X } from "lucide-react"
 type Member = {
   user: { id: string; name: string; email: string }
   roleInProject: string
+  isDeputy: boolean
+}
+
+type RoleValue = "MEMBER" | "MANAGER" | "DEPUTY"
+
+const ROLE_LABELS: Record<RoleValue, string> = {
+  MEMBER: "成員",
+  MANAGER: "管理者",
+  DEPUTY: "第二負責人",
+}
+
+function roleValueOf(m: Member): RoleValue {
+  if (m.roleInProject === "MANAGER") return m.isDeputy ? "DEPUTY" : "MANAGER"
+  return "MEMBER"
+}
+
+function roleBadgeClass(value: RoleValue): string {
+  if (value === "DEPUTY") return "bg-blue-500 text-white hover:bg-blue-500/90"
+  if (value === "MANAGER") return "bg-foreground text-background hover:bg-foreground/90"
+  return "border bg-card text-muted-foreground"
 }
 
 export function MembersPanel({
@@ -50,6 +70,21 @@ export function MembersPanel({
     })
   }
 
+  function handleRoleChange(userId: string, value: string | null) {
+    if (!value) return
+    const roleValue = value as RoleValue
+    const roleInProject = roleValue === "MEMBER" ? "MEMBER" : "MANAGER"
+    const isDeputy = roleValue === "DEPUTY"
+    startTransition(async () => {
+      try {
+        await addProjectMember(projectId, userId, roleInProject, isDeputy)
+        toast.success("角色已更新")
+      } catch {
+        toast.error("更新失敗")
+      }
+    })
+  }
+
   function handleRemove(userId: string) {
     startTransition(async () => {
       try {
@@ -68,34 +103,60 @@ export function MembersPanel({
       </CardHeader>
       <CardContent className="space-y-3">
         <ul className="space-y-2">
-          {members.map((m) => (
-            <li
-              key={m.user.id}
-              className="flex items-center justify-between text-sm"
-            >
-              <span>
-                {m.user.name}
-                <span className="ml-2 text-xs text-muted-foreground">
-                  {m.user.email}
+          {members.map((m) => {
+            const roleValue = roleValueOf(m)
+            return (
+              <li
+                key={m.user.id}
+                className="flex items-center justify-between text-sm"
+              >
+                <span>
+                  {m.user.name}
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {m.user.email}
+                  </span>
                 </span>
-              </span>
-              <div className="flex items-center gap-2">
-                <Badge variant={m.roleInProject === "MANAGER" ? "default" : "outline"}>
-                  {m.roleInProject === "MANAGER" ? "管理者" : "成員"}
-                </Badge>
-                {manageable && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(m.user.id)}
-                    disabled={isPending}
-                    className="text-muted-foreground hover:text-destructive"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            </li>
-          ))}
+                <div className="flex items-center gap-2">
+                  {manageable ? (
+                    <Select
+                      value={roleValue}
+                      onValueChange={(v) => handleRoleChange(m.user.id, v)}
+                    >
+                      <SelectTrigger
+                        size="sm"
+                        className={`h-6 w-auto gap-1 rounded-full border-0 px-2.5 text-xs font-medium ${roleBadgeClass(roleValue)}`}
+                      >
+                        <SelectValue>
+                          {() => ROLE_LABELS[roleValue]}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(Object.keys(ROLE_LABELS) as RoleValue[]).map((v) => (
+                          <SelectItem key={v} value={v}>
+                            {ROLE_LABELS[v]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge className={roleBadgeClass(roleValue)}>
+                      {ROLE_LABELS[roleValue]}
+                    </Badge>
+                  )}
+                  {manageable && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(m.user.id)}
+                      disabled={isPending}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              </li>
+            )
+          })}
         </ul>
 
         {manageable && candidates.length > 0 && (

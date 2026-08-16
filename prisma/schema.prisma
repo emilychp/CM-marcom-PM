@@ -109,6 +109,7 @@ enum ActivityAction {
   MEETING_NOTE_UPDATED
   MEETING_NOTE_REMOVED
   CATEGORIES_CHANGED
+  MEMBER_ROLE_CHANGED
 }
 
 model User {
@@ -246,6 +247,9 @@ model ProjectMember {
   userId        String
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   roleInProject ProjectRole @default(MEMBER)
+  // A MANAGER-tier member additionally flagged as the deputy/backup owner.
+  // Purely a label — carries no permission difference from a plain manager.
+  isDeputy      Boolean     @default(false)
   createdAt     DateTime    @default(now())
 
   @@unique([projectId, userId])

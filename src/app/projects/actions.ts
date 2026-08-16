@@ -309,23 +309,32 @@ export async function deleteProject(projectId: string) {
 export async function addProjectMember(
   projectId: string,
   userId: string,
-  roleInProject: "MANAGER" | "MEMBER"
+  roleInProject: "MANAGER" | "MEMBER",
+  isDeputy: boolean = false
 ) {
   const user = await requireUser()
   const role = await getEffectiveProjectRole(user.id, user.globalRole, projectId)
   if (!canManageProject(role)) throw new Error("FORBIDDEN")
 
+  // isDeputy only means anything alongside MANAGER — a plain member can't
+  // be "the deputy" without also having manager-level access.
+  const effectiveIsDeputy = roleInProject === "MANAGER" && isDeputy
+
+  const existing = await prisma.projectMember.findUnique({
+    where: { projectId_userId: { projectId, userId } },
+  })
+
   const member = await prisma.projectMember.upsert({
     where: { projectId_userId: { projectId, userId } },
-    update: { roleInProject },
-    create: { projectId, userId, roleInProject },
+    update: { roleInProject, isDeputy: effectiveIsDeputy },
+    create: { projectId, userId, roleInProject, isDeputy: effectiveIsDeputy },
   })
 
   await logActivity({
     entityType: "PROJECT",
     entityId: projectId,
     userId: user.id,
-    action: "MEMBER_ADDED",
+    action: existing ? "MEMBER_ROLE_CHANGED" : "MEMBER_ADDED",
     field: "member",
     newValue: userId,
   })
