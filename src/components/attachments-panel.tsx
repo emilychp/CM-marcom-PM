@@ -23,7 +23,11 @@ import { Button } from "@/components/ui/button"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { formatFileSize } from "@/lib/format"
 import { generatePdfThumbnail } from "@/lib/pdf-thumbnail"
-import { MAX_ATTACHMENT_SIZE, ALLOWED_ATTACHMENT_TYPES } from "@/lib/attachment-constants"
+import {
+  MAX_ATTACHMENT_SIZE,
+  ALLOWED_ATTACHMENT_TYPES,
+  SAFE_BODY_UPLOAD_LIMIT,
+} from "@/lib/attachment-constants"
 import { buildAttachmentPathname, uploadFileToBlob } from "@/lib/attachment-upload-client"
 
 type Attachment = {
@@ -115,9 +119,15 @@ export function AttachmentsPanel({
             },
             thumbnailFormData
           )
-        } catch {
-          // No Blob store connected (local dev) — fall back to the legacy
-          // path that sends the file through the Server Action.
+        } catch (directErr) {
+          // Only fall back to the legacy body-based path (the only option
+          // in local dev, with no Blob store connected) when the file is
+          // small enough to actually fit under Vercel's hard 4.5MB request
+          // body ceiling — above that, retrying would just fail again with
+          // a more confusing error.
+          if (selectedFile.size > SAFE_BODY_UPLOAD_LIMIT) {
+            throw directErr instanceof Error ? directErr : new Error("UPLOAD_FAILED")
+          }
           const formData = new FormData()
           formData.set("file", selectedFile)
           if (thumbnail) formData.set("thumbnail", thumbnail)

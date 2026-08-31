@@ -10,7 +10,11 @@ import {
 } from "@/app/projects/actions"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { generatePdfThumbnail } from "@/lib/pdf-thumbnail"
-import { MAX_ATTACHMENT_SIZE, ALLOWED_ATTACHMENT_TYPES } from "@/lib/attachment-constants"
+import {
+  MAX_ATTACHMENT_SIZE,
+  ALLOWED_ATTACHMENT_TYPES,
+  SAFE_BODY_UPLOAD_LIMIT,
+} from "@/lib/attachment-constants"
 import { buildAttachmentPathname, uploadFileToBlob } from "@/lib/attachment-upload-client"
 
 type Attachment = {
@@ -85,7 +89,14 @@ export function MeetingNoteAttachments({
             },
             thumbnailFormData
           )
-        } catch {
+        } catch (directErr) {
+          // Only fall back to the legacy body-based path (the only option
+          // in local dev) when the file is small enough to fit under
+          // Vercel's hard 4.5MB request body ceiling — above that, retrying
+          // would just fail again with a more confusing error.
+          if (file.size > SAFE_BODY_UPLOAD_LIMIT) {
+            throw directErr instanceof Error ? directErr : new Error("UPLOAD_FAILED")
+          }
           const formData = new FormData()
           formData.set("file", file)
           if (thumbnail) formData.set("thumbnail", thumbnail)

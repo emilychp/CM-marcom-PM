@@ -18,7 +18,11 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { generatePdfThumbnail } from "@/lib/pdf-thumbnail"
-import { MAX_ATTACHMENT_SIZE, ALLOWED_ATTACHMENT_TYPES } from "@/lib/attachment-constants"
+import {
+  MAX_ATTACHMENT_SIZE,
+  ALLOWED_ATTACHMENT_TYPES,
+  SAFE_BODY_UPLOAD_LIMIT,
+} from "@/lib/attachment-constants"
 import { buildAttachmentPathname, uploadFileToBlob } from "@/lib/attachment-upload-client"
 
 type Attachment = {
@@ -116,7 +120,14 @@ export function TaskAttachments({
             thumbnailFormData,
             versionOf
           )
-        } catch {
+        } catch (directErr) {
+          // The fallback below sends the file through a Server Action body,
+          // which Vercel hard-caps at 4.5MB regardless of app config — past
+          // that, retrying would just fail again with a more confusing
+          // error, so only attempt it for files small enough to fit.
+          if (file.size > SAFE_BODY_UPLOAD_LIMIT) {
+            throw directErr instanceof Error ? directErr : new Error("UPLOAD_FAILED")
+          }
           const formData = new FormData()
           formData.set("file", file)
           if (thumbnail) formData.set("thumbnail", thumbnail)
