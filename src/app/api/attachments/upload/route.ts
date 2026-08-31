@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server"
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client"
+import { issueSignedToken } from "@vercel/blob"
+import {
+  handleUploadPresigned,
+  type HandleUploadPresignedBody,
+} from "@vercel/blob/client"
 import { auth } from "@/auth"
 import { getEffectiveProjectRole } from "@/lib/permissions"
 import { MAX_ATTACHMENT_SIZE, ALLOWED_ATTACHMENT_TYPES } from "@/lib/attachment-constants"
@@ -9,18 +13,26 @@ type ClientPayload = {
   taskId?: string
 }
 
-// Issues short-lived, scoped Blob upload tokens so the browser can send file
-// bytes straight to Blob storage instead of through a Server Action — Vercel's
-// serverless platform enforces a request-body ceiling on Server Actions well
-// under what large Office files need, regardless of the app-level config.
+// Issues short-lived, scoped presigned upload URLs so the browser can send
+// file bytes straight to Blob storage instead of through a Server Action —
+// Vercel's serverless platform enforces a request-body ceiling on Server
+// Actions well under what large Office files need, regardless of app config.
+//
+// This uses the presigned-URL flow (handleUploadPresigned/issueSignedToken)
+// rather than the classic handleUpload/generateClientTokenFromReadWriteToken
+// flow, because this project's Blob store is connected via OIDC and has no
+// BLOB_READ_WRITE_TOKEN — the classic flow requires that static token to
+// sign client tokens, while the presigned flow works with OIDC and verifies
+// its own upload-completed callback with BLOB_WEBHOOK_PUBLIC_KEY instead
+// (already present here).
 export async function POST(request: Request) {
-  const body = (await request.json()) as HandleUploadBody
+  const body = (await request.json()) as HandleUploadPresignedBody
 
   try {
-    const jsonResponse = await handleUpload({
+    const jsonResponse = await handleUploadPresigned({
       body,
       request,
-      onBeforeGenerateToken: async (_pathname, clientPayloadRaw) => {
+      getSignedToken: async (pathname, clientPayloadRaw) => {
         const session = await auth()
         if (!session?.user) throw new Error("UNAUTHORIZED")
 
@@ -39,10 +51,21 @@ export async function POST(request: Request) {
         // task attachments are no longer restricted to the task's assignee.
         if (!role) throw new Error("FORBIDDEN")
 
-        return {
+        const token = await issueSignedToken({
+          pathname,
+          operations: ["put"],
           allowedContentTypes: [...ALLOWED_ATTACHMENT_TYPES],
           maximumSizeInBytes: MAX_ATTACHMENT_SIZE,
-          addRandomSuffix: false,
+          validUntil: Date.now() + 60 * 60 * 1000, // 1 hour
+        })
+
+        return {
+          token,
+          urlOptions: {
+            allowedContentTypes: [...ALLOWED_ATTACHMENT_TYPES],
+            maximumSizeInBytes: MAX_ATTACHMENT_SIZE,
+            addRandomSuffix: false,
+          },
         }
       },
       onUploadCompleted: async () => {
