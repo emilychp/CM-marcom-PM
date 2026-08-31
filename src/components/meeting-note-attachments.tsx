@@ -107,6 +107,7 @@ export function MeetingNoteAttachments({
       } catch (err) {
         const message =
           err instanceof Error ? UPLOAD_ERROR_MESSAGES[err.message] : undefined
+        if (!message) console.error("附件上傳失敗", err)
         toast.error(message ?? "上傳失敗")
       } finally {
         if (fileInputRef.current) fileInputRef.current.value = ""
