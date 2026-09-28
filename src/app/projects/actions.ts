@@ -506,6 +506,27 @@ async function ensureProjectMember(projectId: string, userId: string) {
   })
 }
 
+// Keeps a phase's status in step with its tasks: once every task under it
+// is DONE, the phase auto-completes so nobody has to remember to also mark
+// the phase itself; if a task is reopened or a new one is added afterward,
+// the phase drops back out of DONE. Manual NOT_STARTED/IN_PROGRESS
+// toggling elsewhere is left alone — this only ever writes DONE or
+// reverses out of it.
+async function syncPhaseStatusFromTasks(phaseId: string) {
+  const [phase, tasks] = await Promise.all([
+    prisma.phase.findUniqueOrThrow({ where: { id: phaseId }, select: { status: true } }),
+    prisma.task.findMany({ where: { phaseId }, select: { status: true } }),
+  ])
+
+  const allDone = tasks.length > 0 && tasks.every((t) => t.status === "DONE")
+
+  if (allDone && phase.status !== "DONE") {
+    await prisma.phase.update({ where: { id: phaseId }, data: { status: "DONE" } })
+  } else if (!allDone && phase.status === "DONE") {
+    await prisma.phase.update({ where: { id: phaseId }, data: { status: "IN_PROGRESS" } })
+  }
+}
+
 export async function createTask(
   phaseId: string,
   projectId: string,
@@ -529,6 +550,7 @@ export async function createTask(
   if (data.assigneeId) {
     await ensureProjectMember(projectId, data.assigneeId)
   }
+  await syncPhaseStatusFromTasks(phaseId)
 
   await logActivity({
     entityType: "TASK",
@@ -559,6 +581,7 @@ export async function updateTaskProgress(
     where: { id: taskId },
     data: { progress: clampedProgress, status },
   })
+  await syncPhaseStatusFromTasks(task.phaseId)
 
   await logActivity({
     entityType: "TASK",
@@ -698,6 +721,7 @@ export async function deleteTask(taskId: string, projectId: string) {
   if (!canManageProject(role)) throw new Error("FORBIDDEN")
 
   const task = await prisma.task.delete({ where: { id: taskId } })
+  await syncPhaseStatusFromTasks(task.phaseId)
 
   await logActivity({
     entityType: "PROJECT",

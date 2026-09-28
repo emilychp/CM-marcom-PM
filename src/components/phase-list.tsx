@@ -76,9 +76,18 @@ export function PhaseList({
     )
   }
 
+  // Completed phases sink to the bottom so the phases still being worked
+  // on stay at the top — a stable sort keeps everything else in the order
+  // the server sent (their existing `order`).
+  const sortedPhases = [...phases].sort((a, b) => {
+    const aDone = a.status === "DONE" ? 1 : 0
+    const bDone = b.status === "DONE" ? 1 : 0
+    return aDone - bDone
+  })
+
   return (
     <div className="space-y-3">
-      {phases.map((phase) => (
+      {sortedPhases.map((phase) => (
         <PhaseItem
           key={phase.id}
           projectId={projectId}
