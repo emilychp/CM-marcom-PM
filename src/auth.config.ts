@@ -4,6 +4,10 @@ export const authConfig = {
   pages: {
     signIn: "/login",
   },
+  // Vercel auto-trusts its own hostname; a self-hosted deploy behind an
+  // internal reverse proxy has no such platform to detect, so Auth.js needs
+  // this explicitly or it rejects requests as a possible host-header attack.
+  trustHost: true,
   session: { strategy: "jwt" },
   providers: [],
   callbacks: {
