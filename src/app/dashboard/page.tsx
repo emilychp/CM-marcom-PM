@@ -88,15 +88,15 @@ export default async function DashboardPage({
     <div className="flex min-h-screen flex-col bg-canvas">
       <NavBar />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <h1 className="text-2xl font-semibold">專案總覽</h1>
             <p className="text-sm text-muted-foreground">
               共 {allProjects.length} 個專案
               {canReorder && "・拖曳卡片右上角圖示可調整順序"}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <ViewModeSelect />
             <StatusFilter />
             <NewProjectDialog categories={categories} />

@@ -63,10 +63,10 @@ export function PhaseSection({
 
   return (
     <div className="rounded-lg border bg-background p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold">專案流程</h2>
-          <div className="flex rounded-md border p-0.5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="shrink-0 text-lg font-semibold">專案流程</h2>
+          <div className="flex shrink-0 rounded-md border p-0.5">
             <button
               type="button"
               onClick={() => setView("LIST")}

@@ -59,7 +59,7 @@ export function ProjectCard({ project }: { project: ProjectCardData }) {
             className="h-44 w-full object-cover"
           />
         )}
-        <CardHeader>
+        <CardHeader className="pr-10">
           <div className="flex items-start justify-between gap-2">
             <CardTitle className="line-clamp-1">{project.name}</CardTitle>
             <div className="flex shrink-0 items-center gap-1.5">

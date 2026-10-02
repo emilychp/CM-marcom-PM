@@ -50,7 +50,7 @@ export function AddTaskForm({
         placeholder="新增任務名稱"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        className="h-8 flex-1"
+        className="h-8 min-w-0 flex-1 basis-full sm:basis-auto"
       />
       <Select value={assigneeId ?? undefined} onValueChange={setAssigneeId}>
         <SelectTrigger size="sm" className="w-32">

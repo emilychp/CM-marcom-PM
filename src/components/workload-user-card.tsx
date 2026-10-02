@@ -169,7 +169,7 @@ export function WorkloadUserCard({
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className="flex w-full items-center justify-between gap-3 text-left"
+          className="flex w-full flex-wrap items-center justify-between gap-3 text-left"
           disabled={taskCount === 0}
         >
           <div className="flex items-center gap-2">
@@ -187,7 +187,7 @@ export function WorkloadUserCard({
               <p className="text-xs text-muted-foreground">{email}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">{ownedProjectCount} 個負責專案</Badge>
             <Badge variant={taskCount > 5 ? "destructive" : "secondary"}>
               {taskCount} 項進行中任務

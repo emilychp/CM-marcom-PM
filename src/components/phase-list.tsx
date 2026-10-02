@@ -173,8 +173,8 @@ function PhaseItem({
   return (
     <div className="rounded-lg border">
       <div className="px-4 py-3">
-        <div className="flex w-full items-center justify-between gap-3">
-        <div className="flex flex-1 items-center gap-2">
+        <div className="flex w-full flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
@@ -218,7 +218,7 @@ function PhaseItem({
             </div>
           ) : (
             <>
-              <span className="font-medium">{phase.name}</span>
+              <span className="shrink-0 font-medium">{phase.name}</span>
               {manageable && (
                 <button type="button" onClick={() => setEditingName(true)}>
                   <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
@@ -226,7 +226,7 @@ function PhaseItem({
               )}
             </>
           )}
-          <span className="text-sm text-muted-foreground">
+          <span className="shrink-0 text-sm text-muted-foreground">
             {doneCount}/{taskCount} 完成
           </span>
         </div>
